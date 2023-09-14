@@ -24,7 +24,7 @@ data:
   sample_rate: ${model.encoder.sample_rate}
   audio_mono: true
   audio_duration: 1
-  audio_normalize: true
+  audio_normalize: false # If pre-processing is done beforehand, false is fine.
   audio_overlap: 0.5
   expert_and_novice: true
   # VAD

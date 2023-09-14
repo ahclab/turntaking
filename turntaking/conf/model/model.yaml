@@ -55,7 +55,7 @@ audio_module: &AudioModule
   type: 'transformer' #transformer, cnn, lstm, gru, conformer, squeezeformer
   input_size: 256
   num_layers: 2
-  dropout: 0.1
+  dropout: 0.4
   model_kwargs:
     <<: *model_kwargs
 
@@ -138,7 +138,7 @@ main_module:
   type: 'transformer' #transformer, cnn, lstm, gru, conformer, squeezeformer
   input_size: null
   num_layers: 2
-  dropout: 0.1
+  dropout: 0.4
   model_kwargs:
     <<: *model_kwargs
 

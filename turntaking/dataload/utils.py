@@ -61,6 +61,49 @@ def get_audio_info(audio_path):
     }
 
 
+# def load_waveform(
+#     path,
+#     sample_rate=None,
+#     start_time=None,
+#     end_time=None,
+#     normalize=False,
+#     mono=False,
+#     audio_normalize_threshold=0.05,
+# ):
+#     if start_time is not None:
+#         info = get_audio_info(path)
+#         frame_offset = time_to_samples(start_time, info["sample_rate"])
+#         num_frames = info["num_frames"]
+#         if end_time is not None:
+#             num_frames = time_to_samples(end_time, info["sample_rate"]) - frame_offset
+#         else:
+#             num_frames = num_frames - frame_offset
+#         x, sr = torchaudio.load(path, frame_offset=frame_offset, num_frames=num_frames)
+#     else:
+#         x, sr = torchaudio.load(path)
+
+#     if normalize:
+#         if x.shape[0] > 1:
+#             if x[0].abs().max() > audio_normalize_threshold:
+#                 x[0] /= x[0].abs().max()
+#             if x[1].abs().max() > audio_normalize_threshold:
+#                 x[1] /= x[1].abs().max()
+#         else:
+#             if x.abs().max() > audio_normalize_threshold:
+#                 x /= x.abs().max()
+
+#     if mono and x.shape[0] > 1:
+#         x = x.mean(dim=0).unsqueeze(0)
+#         if normalize:
+#             if x.abs().max() > audio_normalize_threshold:
+#                 x /= x.abs().max()
+
+#     if sample_rate:
+#         if sr != sample_rate:
+#             x = AF.resample(x, orig_freq=sr, new_freq=sample_rate)
+#             sr = sample_rate
+#     return x, sr
+
 def load_waveform(
     path,
     sample_rate=None,
@@ -70,60 +113,59 @@ def load_waveform(
     mono=False,
     audio_normalize_threshold=0.05,
 ):
+
+    frame_offset = 0
+    num_frames = None
+
     if start_time is not None:
         info = get_audio_info(path)
         frame_offset = time_to_samples(start_time, info["sample_rate"])
-        num_frames = info["num_frames"]
         if end_time is not None:
             num_frames = time_to_samples(end_time, info["sample_rate"]) - frame_offset
         else:
-            num_frames = num_frames - frame_offset
-        x, sr = torchaudio.load(path, frame_offset=frame_offset, num_frames=num_frames)
-    else:
-        x, sr = torchaudio.load(path)
+            num_frames -= frame_offset
+
+    x, sr = torchaudio.load(path, frame_offset=frame_offset, num_frames=num_frames)
 
     if normalize:
-        if x.shape[0] > 1:
-            if x[0].abs().max() > audio_normalize_threshold:
-                x[0] /= x[0].abs().max()
-            if x[1].abs().max() > audio_normalize_threshold:
-                x[1] /= x[1].abs().max()
-        else:
-            if x.abs().max() > audio_normalize_threshold:
-                x /= x.abs().max()
+        max_val = x.abs().max(dim=1)[0]
+        for idx in range(x.shape[0]):
+            if max_val[idx] > audio_normalize_threshold:
+                x[idx] /= max_val[idx]
 
     if mono and x.shape[0] > 1:
         x = x.mean(dim=0).unsqueeze(0)
         if normalize:
-            if x.abs().max() > audio_normalize_threshold:
-                x /= x.abs().max()
+            max_val = x.abs().max()
+            if max_val > audio_normalize_threshold:
+                x /= max_val
 
-    if sample_rate:
-        if sr != sample_rate:
-            x = AF.resample(x, orig_freq=sr, new_freq=sample_rate)
-            sr = sample_rate
+    if sample_rate and sr != sample_rate:
+        x = AF.resample(x, orig_freq=sr, new_freq=sample_rate)
+        sr = sample_rate
+
     return x, sr
 
-def load_multimodal_features(path, feature_name, normalize="batch_normalization"):
+
+def load_multimodal_features(path, normalize="batch_normalization"):
+    def extract_features(columns):
+        features = torch.tensor(df[columns].to_numpy())
+        features = torch.nan_to_num(features, nan=0, posinf=0, neginf=0).unsqueeze(0).float()
+        return features
+
     df = pd.read_csv(path)
-    feature_columns = []
 
-    if feature_name == "gaze":
-        feature_columns = ["gaze_x", "gaze_y", "gaze_confidence"]
-    elif feature_name == "au":
-        feature_columns = [f"AU{code:02d}" for code in [1, 2, 4, 5, 6, 7, 9, 10, 12, 14, 15, 17, 20, 23, 25, 26, 45]] + ["gaze_confidence"]
-    elif feature_name == "pose":
-        feature_columns = [f"pose_{i}_{axis}" for i in range(1, 8) for axis in ["x", "y", "confidence"]]
-    elif feature_name == "head":
-        feature_columns = ["head_x", "head_y", "head_z", "gaze_confidence"]
-    else:
-        print(f"ERROR: load_multimodal_features()")
-        exit(1)
+    feature_columns_gaze = ["gaze_x", "gaze_y", "gaze_confidence"]
+    feature_columns_au = [f"AU{code:02d}" for code in [1, 2, 4, 5, 6, 7, 9, 10, 12, 14, 15, 17, 20, 23, 25, 26, 45]] + ["gaze_confidence"]
+    feature_columns_pose = [f"pose_{i}_{axis}" for i in range(1, 8) for axis in ["x", "y", "confidence"]]
+    feature_columns_head = ["head_x", "head_y", "head_z", "gaze_confidence"]
 
-    features = torch.tensor(df[feature_columns].to_numpy())
-    features = torch.nan_to_num(features, nan=0, posinf=0, neginf=0)
+    features_gaze = extract_features(feature_columns_gaze)
+    features_au = extract_features(feature_columns_au)
+    features_pose = extract_features(feature_columns_pose)
+    features_head = extract_features(feature_columns_head)
 
-    return features
+    return features_gaze, features_au, features_pose, features_head
 
 
 # def load_multimodal_features(

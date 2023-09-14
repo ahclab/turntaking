@@ -38,8 +38,8 @@ class Train():
 
         self.optimizer = self._create_optimizer()
         # self.scheduler = LambdaLR(self.optimizer, lr_lambda=lambda epoch: 0.95**epoch)
-        self.scheduler = CosineAnnealingLR(self.optimizer, T_max=self.conf["train"]["max_epochs"], eta_min=0)
-        # self.scheduler = CosineLRScheduler(self.optimizer, t_initial=self.conf["train"]["max_epochs"], lr_min=0, warmup_t=3, warmup_lr_init=5e-5, warmup_prefix=True)
+        # self.scheduler = CosineAnnealingLR(self.optimizer, T_max=self.conf["train"]["max_epochs"], eta_min=0)
+        self.scheduler = CosineLRScheduler(self.optimizer, t_initial=self.conf["train"]["max_epochs"], lr_min=0, warmup_t=3, warmup_lr_init=5e-5, warmup_prefix=True)
         
 
         self.early_stopping = EarlyStopping(patience=self.conf["train"]["patience"], verbose=self.conf["train"]["verbose"], path=self.output_path)
