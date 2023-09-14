@@ -1,0 +1,152 @@
+encoder: &Encoder
+  pretrained: true
+  output_layer: 1
+  sample_rate: 16000
+  name: cpc
+  frame_hz: 25
+  freeze: true
+  # downsample:
+  #   kernel: [13]
+  #   stride: [5]
+  #   dilation: [1]
+  #   activation: "GELU"
+  downsample:
+    kernel: [11]
+    stride: [4]
+    dilation: [1]
+    activation: "GELU"
+
+model_kwargs: &model_kwargs
+  GRU:
+    dff_k: 3
+    batch_first: True
+    bias: True
+  LSTM:
+    dff_k: 1
+    batch_first: True
+  CNN: 
+    kernel: 3
+    stride: 2
+    padding: 1
+  Transformer:
+    num_heads: 4
+    dff_k: 3
+    resnet: False
+    activation: "GELU"
+    use_pos_emb: false  # false == AliBI
+    max_context: null # no max context if use_pos_emb=false
+    use_pre_ln: true # Pre-LN Transformer
+  Conformer:
+    num_heads: 4
+    dff_k: 1
+    use_pos_emb: false  # false == AliBI
+    convolution_first: false
+    conv_kernel_size: 3
+  Squeezeformer:
+    num_heads: 4
+    dff_k: 4
+    conv_expansion_factor: 2
+    reduce_layer_index: 7
+    recover_layer_index: 15
+    conv_kernel_size: 3
+    half_step_residual: false
+
+audio_module: &AudioModule
+  type: 'transformer' #transformer, cnn, lstm, gru, conformer, squeezeformer
+  input_size: 256
+  num_layers: 2
+  dropout: 0.1
+  model_kwargs:
+    <<: *model_kwargs
+
+non_verbal_module: &NonVarbalModule
+  type: 'transformer' #transformer, cnn, lstm, gru, conformer, squeezeformer
+  input_size: 64
+  num_layers: 2
+  dropout: 0.4
+  model_kwargs:
+    <<: *model_kwargs
+
+audio_cond:
+  use_module: true
+  encoder:
+    <<: *Encoder
+    use_module: false
+    module:
+      use_module: false
+      <<: *AudioModule
+  encoder_separated_audio:
+    use_module: true
+    user1_input: false
+    user2_input: true
+    <<: *Encoder
+    user_1: #expert
+      module:
+        use_module: true
+        <<: *AudioModule
+    user_2: #novice
+      module:
+        use_module: true
+        <<: *AudioModule
+  va_cond:
+    use_module: true
+    output_size: 256
+    use_history: true
+    history_bins: 5
+  audio_module:
+    use_module: true
+    <<: *AudioModule
+
+non_verbal_cond:
+  use_module: false
+  user1_input: false
+  user2_input: true
+  gaze: 
+    use_module: true 
+    gaze_module:
+      use_module: false
+      <<: *NonVarbalModule
+  au: 
+    use_module: true 
+    au_module:
+      use_module: false
+      <<: *NonVarbalModule
+  head: 
+    use_module: true
+    head_module:
+      use_module: false
+      <<: *NonVarbalModule
+  pose: 
+    use_module: false
+    pose_module:
+      use_module: false
+      <<: *NonVarbalModule
+  non_verbal_module:
+    use_module: true
+    type: 'transformer' #transformer, cnn, lstm, gru, conformer, squeezeformer
+    input_size: null
+    num_layers: 2
+    dropout: 0.4
+    model_kwargs:
+      <<: *model_kwargs
+  linear:
+    output_size: 256
+
+
+main_module:
+  use_module: true
+  type: 'transformer' #transformer, cnn, lstm, gru, conformer, squeezeformer
+  input_size: null
+  num_layers: 2
+  dropout: 0.1
+  model_kwargs:
+    <<: *model_kwargs
+
+vap:
+  type: 'discrete'
+  # type: 'independent'
+  # type: 'comparative'
+  bin_times: [.2, .4, .6, .8]
+  # bin_times: [.05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05,  .05]
+  pre_frames: 2
+  bin_threshold: 0.5

@@ -1,0 +1,53 @@
+defaults:
+  - _self_
+  - model: model 
+  - events: events 
+
+info:
+  debug: false
+
+train:
+  trial_count: 10
+  seed: null
+  max_epochs: 50
+  patience: 3
+  optimizer: "AdamW"
+  verbose: false
+  checkpoint: 1
+  device: "cuda:0"
+  learning_rate: 3.63e-4
+
+data:
+  datasets: ["noxi"]
+  tensor_path: null
+  type: "sliding"
+  sample_rate: ${model.encoder.sample_rate}
+  audio_mono: true
+  audio_duration: 1
+  audio_normalize: true
+  audio_overlap: 0.5
+  expert_and_novice: true
+  # VAD
+  vad_hz: ${model.encoder.frame_hz}
+  vad_horizon: 2
+  vad_history: true
+  vad_history_times: [60, 30, 10, 5]
+  # Data
+  train_files: null
+  val_files: null
+  test_files: null
+  batch_size: 128
+  num_workers: 8
+  # Non-verbal
+  multimodal: true
+  normalize: "batch_normalization" # or "min-max"
+  # Label
+  label_type: ${model.vap.type}
+  bin_times: ${model.vap.bin_times}
+  pre_frames: ${model.vap.pre_frames}
+  threshold_ratio: ${model.vap.bin_threshold}
+  undersampling: false
+
+hydra:
+  run:
+    dir: runs
