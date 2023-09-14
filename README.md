@@ -11,10 +11,6 @@ Model training for
 * Dependencies: 
   * Install Cython: `pip install cython`
   * Install requirements: `pip install -r requirements.txt`
-  * **VAP**: Voice Activity Projection multi-purpose "head".
-    * Install [`vap_turn_taking`](https://github.com/ErikEkstedt/vap_turn_taking.git)
-      * Repo. clone: `git clone https://github.com/ahclab/vap_turn_taking.git`
-      * cd to repo, Install: `pip install -e .`
 * Install **`turntaking`:** 
   * cd to root directory and run: `pip install -e .`
 

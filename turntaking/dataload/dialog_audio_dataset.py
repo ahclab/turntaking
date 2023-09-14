@@ -11,8 +11,8 @@ from turntaking.dataload.utils import (
 from torch.utils.data import DataLoader
 
 
-from vap_turn_taking.utils import vad_list_to_onehot, get_activity_history
-from vap_turn_taking import VAPLabel, ActivityEmb
+from turntaking.vap_to_turntaking.utils import vad_list_to_onehot, get_activity_history
+from turntaking.vap_to_turntaking import VAPLabel, ActivityEmb
 from decimal import Decimal, ROUND_HALF_UP
 from concurrent.futures import ProcessPoolExecutor
 
@@ -652,7 +652,7 @@ if __name__ == "__main__":
     print(dset)
     print(f"Datasets Size: {len(dset)}")
 
-    # from vap_turn_taking import VAP, TurnTakingMetrics
+    # from turntaking.vap_to_turntaking import VAP, TurnTakingMetrics
     # metric = TurnTakingMetrics(
     #         hs_kwargs=  dict(
     #             post_onset_shift=1,

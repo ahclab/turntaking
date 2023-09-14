@@ -17,6 +17,7 @@ einops
 pytest
 matplotlib
 pyaudio
+timm==0.9.7
 
 # CPC: does not seem to work directly. One must install cython 'pip install cython'
 # prior to 'pip install -r requirements.txt'

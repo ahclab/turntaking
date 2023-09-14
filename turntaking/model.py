@@ -8,7 +8,7 @@ from einops.layers.torch import Rearrange
 
 from turntaking.models import Encoder, Encoder_Separated, AR
 from turntaking.utils import to_device
-from vap_turn_taking import VAP, TurnTakingMetrics
+from turntaking.vap_to_turntaking import VAP, TurnTakingMetrics
 from torchinfo import summary
 import numpy as np
 

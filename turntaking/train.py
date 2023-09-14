@@ -14,6 +14,7 @@ import numpy as np
 import torch
 from omegaconf import DictConfig, OmegaConf 
 from torch.optim.lr_scheduler import LambdaLR, CosineAnnealingLR
+from timm.scheduler import CosineLRScheduler
 from tqdm import tqdm
 
 from turntaking.callbacks import EarlyStopping
@@ -38,6 +39,8 @@ class Train():
         self.optimizer = self._create_optimizer()
         # self.scheduler = LambdaLR(self.optimizer, lr_lambda=lambda epoch: 0.95**epoch)
         self.scheduler = CosineAnnealingLR(self.optimizer, T_max=self.conf["train"]["max_epochs"], eta_min=0)
+        # self.scheduler = CosineLRScheduler(self.optimizer, t_initial=self.conf["train"]["max_epochs"], lr_min=0, warmup_t=3, warmup_lr_init=5e-5, warmup_prefix=True)
+        
 
         self.early_stopping = EarlyStopping(patience=self.conf["train"]["patience"], verbose=self.conf["train"]["verbose"], path=self.output_path)
         self.checkpoint = self._create_checkpoints()
@@ -73,7 +76,7 @@ class Train():
                         print("Early stopping triggered.")
                         break
 
-            self.scheduler.step()
+            self.scheduler.step(i+1)
 
             if self.early_stopping.early_stop:
                 break
