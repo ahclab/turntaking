@@ -1,11 +1,6 @@
-from os.path import join, expanduser
+from os.path import join
 from datasets import load_dataset
 from turntaking.dataload.utils import repo_root, read_txt
-import pandas as pd
-import statistics
-import json
-import torch
-from statistics import mean
 
 AUDIO_DIR = "/ahc/work2/kazuyo-oni/projects/data/noxi"
 MULTIMODAL_DIR = "/ahc/work2/kazuyo-oni/projects/data/noxi"
@@ -17,6 +12,7 @@ MULTIMODAL_EXT = ".csv"
 
 SPLIT_PATH = join(repo_root(), "dataload/dataset/noxi/files")
 
+
 def load_noxi(
     split="train",
     audio_root=AUDIO_DIR,
@@ -27,7 +23,6 @@ def load_noxi(
     val_files=None,
     test_files=None,
 ):
-
     def session_generator(
         dset,
         split,
@@ -51,9 +46,10 @@ def load_noxi(
             else read_txt(test_files)
         )
 
-
         if split == "train":
-            train_dset = dset.filter(lambda example: example["session"] in train_sessions)
+            train_dset = dset.filter(
+                lambda example: example["session"] in train_sessions
+            )
             return train_dset
         elif split == "validation":
             val_dset = dset.filter(lambda example: example["session"] in val_sessions)
@@ -71,16 +67,26 @@ def load_noxi(
     def process_and_add_name(examples):
         examples["dataset_name"] = "noxi"
         if audio_root is not None:
-            examples["audio_path"] = join(audio_root, examples["audio_path"] + audio_ext)
-            examples["expert_audio_path"] = join(audio_root, examples["expert_audio_path"] + audio_ext)
-            examples["novice_audio_path"] = join(audio_root, examples["novice_audio_path"] + audio_ext)
-        if multimodal_root is not None:   
-            examples["multimodal_expert_path"] = join(multimodal_root, examples["multimodal_expert_path"] + multimodal_ext)
-            examples["multimodal_novice_path"] = join(multimodal_root, examples["multimodal_novice_path"] + multimodal_ext)
+            examples["audio_path"] = join(
+                audio_root, examples["audio_path"] + audio_ext
+            )
+            examples["expert_audio_path"] = join(
+                audio_root, examples["expert_audio_path"] + audio_ext
+            )
+            examples["novice_audio_path"] = join(
+                audio_root, examples["novice_audio_path"] + audio_ext
+            )
+        if multimodal_root is not None:
+            examples["multimodal_expert_path"] = join(
+                multimodal_root, examples["multimodal_expert_path"] + multimodal_ext
+            )
+            examples["multimodal_novice_path"] = join(
+                multimodal_root, examples["multimodal_novice_path"] + multimodal_ext
+            )
 
         return examples
 
-    dset = load_dataset(DATASET_SCRIPT,name="default",split="train+validation+test")
+    dset = load_dataset(DATASET_SCRIPT, name="default", split="train+validation+test")
     dset = dset.map(process_and_add_name)
 
     dataset = session_generator(

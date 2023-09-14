@@ -1,9 +1,6 @@
-from os.path import join, expanduser
-from pprint import pprint
+from os.path import join
 from datasets import load_dataset
 from turntaking.dataload.utils import repo_root, read_txt
-from datasets import Dataset, DatasetDict
-import itertools
 
 AUDIO_DIR = "/ahc/work2/kazuyo-oni/projects/data/switchboard/audio"
 
@@ -11,6 +8,7 @@ DATASET_SCRIPT = join(repo_root(), "dataload/dataset/switchboard/switchboard.py"
 EXT = ".wav"
 
 SPLIT_PATH = join(repo_root(), "dataload/dataset/switchboard/files")
+
 
 def load_switchboard(
     split="train",
@@ -20,7 +18,6 @@ def load_switchboard(
     val_files=None,
     test_files=None,
 ):
-
     def session_generator(
         dset,
         split,
@@ -45,7 +42,9 @@ def load_switchboard(
         )
 
         if split == "train":
-            train_dset = dset.filter(lambda example: example["session"] in train_sessions)
+            train_dset = dset.filter(
+                lambda example: example["session"] in train_sessions
+            )
             return train_dset
         elif split == "validation":
             val_dset = dset.filter(lambda example: example["session"] in val_sessions)
@@ -57,13 +56,13 @@ def load_switchboard(
             print("split Error")
             exit()
 
-        #dataset = DatasetDict({
+        # dataset = DatasetDict({
         #    "train":train_dset,
         #    "validation":val_dset,
         #    "test":test_dset,
         #    })
 
-        #return dataset
+        # return dataset
 
     if split == "val":
         split = "validation"
@@ -75,7 +74,7 @@ def load_switchboard(
 
         return examples
 
-    dset = load_dataset(DATASET_SCRIPT,name="default",split="train+validation+test")
+    dset = load_dataset(DATASET_SCRIPT, name="default", split="train+validation+test")
     dset = dset.map(process_and_add_name)
 
     dataset = session_generator(
@@ -84,7 +83,7 @@ def load_switchboard(
         train_files,
         val_files,
         test_files,
-        )
+    )
 
-    #print(dataset)
+    # print(dataset)
     return dataset

@@ -30,7 +30,7 @@ def get_slopes(n):
     def get_slopes_power_of_2(n):
         start = 2 ** (-(2 ** -(math.log2(n) - 3)))
         ratio = start
-        return [start * ratio ** i for i in range(n)]
+        return [start * ratio**i for i in range(n)]
 
     # In the paper, we only train models that have 2^a heads for some a. This function has
     # some good properties that only occur when the input is a power of 2. To maintain that even

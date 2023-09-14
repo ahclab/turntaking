@@ -10,13 +10,15 @@ from turntaking.models.multi_head_attention import (
     MultiHeadAttention,
 )
 
+
 def _lengths_to_padding_mask(lengths: torch.Tensor) -> torch.Tensor:
     batch_size = lengths.shape[0]
     max_length = int(torch.max(lengths).item())
-    padding_mask = torch.arange(max_length, device=lengths.device, dtype=lengths.dtype).expand(
-        batch_size, max_length
-    ) >= lengths.unsqueeze(1)
+    padding_mask = torch.arange(
+        max_length, device=lengths.device, dtype=lengths.dtype
+    ).expand(batch_size, max_length) >= lengths.unsqueeze(1)
     return padding_mask
+
 
 class _ConvolutionModule(torch.nn.Module):
     r"""Conformer convolution module.
@@ -41,7 +43,9 @@ class _ConvolutionModule(torch.nn.Module):
     ) -> None:
         super().__init__()
         if (depthwise_kernel_size - 1) % 2 != 0:
-            raise ValueError("depthwise_kernel_size must be odd to achieve 'SAME' padding.")
+            raise ValueError(
+                "depthwise_kernel_size must be odd to achieve 'SAME' padding."
+            )
         self.layer_norm = torch.nn.LayerNorm(input_dim)
         self.sequential = torch.nn.Sequential(
             torch.nn.Conv1d(
@@ -107,6 +111,7 @@ class StaticPositionEmbedding(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return x + self.pe[:, : x.size(1), :]
 
+
 class _FeedForwardModule(torch.nn.Module):
     r"""Positionwise feed forward layer.
 
@@ -137,6 +142,7 @@ class _FeedForwardModule(torch.nn.Module):
             torch.Tensor: output, with shape `(*, D)`.
         """
         return self.sequential(input)
+
 
 class ConformerLayer(torch.nn.Module):
     r"""Conformer layer that constitutes Conformer.
@@ -185,7 +191,7 @@ class ConformerLayer(torch.nn.Module):
             num_channels=input_dim,
             depthwise_kernel_size=depthwise_conv_kernel_size,
             dropout=dropout,
-            bias=False, # True -> False
+            bias=False,  # True -> False
             use_group_norm=use_group_norm,
         )
 
@@ -201,7 +207,9 @@ class ConformerLayer(torch.nn.Module):
         input = residual + input
         return input
 
-    def forward(self, input: torch.Tensor, key_padding_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(
+        self, input: torch.Tensor, key_padding_mask: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         r"""
         Args:
             input (torch.Tensor): input, with shape `(T, B, D)`.
@@ -215,7 +223,6 @@ class ConformerLayer(torch.nn.Module):
         x = self.self_attn_layer_norm(x)
         x = self.ffn1(x)
         x = x * 0.5 + residual
-
 
         if self.convolution_first:
             x = self._apply_convolution(x)
@@ -237,6 +244,7 @@ class ConformerLayer(torch.nn.Module):
         x = self.ffn2(x)
         x = x * 0.5 + residual
         return x
+
 
 class Conformer(nn.Module):
     """Conformer architecture introduced in
@@ -292,13 +300,15 @@ class Conformer(nn.Module):
                     dropout=dropout,
                     use_group_norm=use_group_norm,
                     convolution_first=convolution_first,
-                    position_emb=use_pos_emb
+                    position_emb=use_pos_emb,
                 )
                 for _ in range(num_layers)
             ]
         )
 
-    def forward(self, input: torch.Tensor, lengths: torch.Tensor = None) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(
+        self, input: torch.Tensor, lengths: torch.Tensor = None
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         r"""
         Args:
             input (torch.Tensor): with shape `(B, T, input_size)`.
@@ -322,15 +332,14 @@ class Conformer(nn.Module):
         return x.transpose(0, 1), lengths
 
 
-
 def _test_conformer():
     model = Conformer(
-        input_size=256, 
-        num_heads=8, 
-        ffn_dim=256*3,
+        input_size=256,
+        num_heads=8,
+        ffn_dim=256 * 3,
         num_layers=4,
-        depthwise_conv_kernel_size=3
-        )
+        depthwise_conv_kernel_size=3,
+    )
     lengths = torch.tensor([250] * 4)
     x = torch.rand((4, 250, 256))
     with torch.no_grad():
@@ -341,5 +350,4 @@ def _test_conformer():
 
 
 if __name__ == "__main__":
-
     _test_conformer()

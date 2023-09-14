@@ -45,14 +45,18 @@ class DepthwiseConv2dSubsampling(nn.Module):
             nn.ReLU(),
         )
 
-    def forward(self, inputs: Tensor, input_lengths: Tensor = None) -> Tuple[Tensor, Tensor]:
+    def forward(
+        self, inputs: Tensor, input_lengths: Tensor = None
+    ) -> Tuple[Tensor, Tensor]:
         outputs = self.sequential(inputs.unsqueeze(1))
         batch_size, channels, subsampled_lengths, subsampled_dim = outputs.size()
 
         outputs = outputs.permute(0, 2, 1, 3)
-        outputs = outputs.contiguous().view(batch_size, subsampled_lengths, channels * subsampled_dim)
+        outputs = outputs.contiguous().view(
+            batch_size, subsampled_lengths, channels * subsampled_dim
+        )
 
-        if input_lengths == None:
+        if input_lengths is None:
             output_lengths = None
         else:
             output_lengths = input_lengths >> 2
@@ -88,7 +92,9 @@ class DepthwiseConv2d(nn.Module):
         padding: int = 0,
     ) -> None:
         super(DepthwiseConv2d, self).__init__()
-        assert out_channels % in_channels == 0, "out_channels should be constant multiple of in_channels"
+        assert (
+            out_channels % in_channels == 0
+        ), "out_channels should be constant multiple of in_channels"
         self.conv = nn.Conv2d(
             in_channels=in_channels,
             out_channels=out_channels,
@@ -130,7 +136,9 @@ class DepthwiseConv1d(nn.Module):
         bias: bool = False,
     ) -> None:
         super(DepthwiseConv1d, self).__init__()
-        assert out_channels % in_channels == 0, "out_channels should be constant multiple of in_channels"
+        assert (
+            out_channels % in_channels == 0
+        ), "out_channels should be constant multiple of in_channels"
         self.conv = nn.Conv1d(
             in_channels=in_channels,
             out_channels=out_channels,
@@ -208,14 +216,28 @@ class ConvModule(nn.Module):
         dropout_p: float = 0.1,
     ) -> None:
         super(ConvModule, self).__init__()
-        assert (kernel_size - 1) % 2 == 0, "kernel_size should be a odd number for 'SAME' padding"
+        assert (
+            kernel_size - 1
+        ) % 2 == 0, "kernel_size should be a odd number for 'SAME' padding"
         assert expansion_factor == 2, "Currently, Only Supports expansion_factor 2"
 
         self.sequential = nn.Sequential(
             Transpose(shape=(1, 2)),
-            PointwiseConv1d(in_channels, in_channels * expansion_factor, stride=1, padding=0, bias=True),
+            PointwiseConv1d(
+                in_channels,
+                in_channels * expansion_factor,
+                stride=1,
+                padding=0,
+                bias=True,
+            ),
             GLU(dim=1),
-            DepthwiseConv1d(in_channels, in_channels, kernel_size, stride=1, padding=(kernel_size - 1) // 2),
+            DepthwiseConv1d(
+                in_channels,
+                in_channels,
+                kernel_size,
+                stride=1,
+                padding=(kernel_size - 1) // 2,
+            ),
             nn.BatchNorm1d(in_channels),
             Swish(),
             PointwiseConv1d(in_channels, in_channels, stride=1, padding=0, bias=True),
@@ -245,14 +267,18 @@ class TimeReductionLayer(nn.Module):
             Swish(),
         )
 
-    def forward(self, inputs: Tensor, input_lengths: Tensor = None) -> Tuple[Tensor, Tensor]:
+    def forward(
+        self, inputs: Tensor, input_lengths: Tensor = None
+    ) -> Tuple[Tensor, Tensor]:
         outputs = self.sequential(inputs.unsqueeze(1))
         batch_size, channels, subsampled_lengths, subsampled_dim = outputs.size()
 
         outputs = outputs.permute(0, 2, 1, 3)
-        outputs = outputs.contiguous().view(batch_size, subsampled_lengths, channels * subsampled_dim)
+        outputs = outputs.contiguous().view(
+            batch_size, subsampled_lengths, channels * subsampled_dim
+        )
 
-        if input_lengths == None:
+        if input_lengths is None:
             output_lengths = None
         else:
             output_lengths = input_lengths >> 1

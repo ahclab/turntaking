@@ -1,4 +1,4 @@
-import torch ,math
+import torch, math
 import torch.nn as nn
 
 from einops.layers.torch import Rearrange
@@ -83,7 +83,7 @@ class CConv1d(nn.Conv1d):
 
     def forward(self, input):
         return super().forward(self.pad(input))
-    
+
 
 class CNN(nn.Module):
     def __init__(
@@ -93,30 +93,29 @@ class CNN(nn.Module):
         stride: int = 2,
         padding: int = 1,
     ):
-
         def calc_dim(dim, k, s, p):
-            return math.floor((dim+2*p-1*(k-1)-1)/s + 1)
-        
+            return math.floor((dim + 2 * p - 1 * (k - 1) - 1) / s + 1)
+
         conv1_out_dim = calc_dim(input_size, kernel, stride, padding)
         conv2_out_dim = calc_dim(conv1_out_dim, kernel, stride, padding)
 
         super(CNN, self).__init__()
         self.conv1 = nn.Conv1d(
-            in_channels=input_size, 
-            out_channels=conv1_out_dim, 
-            kernel_size=kernel, 
-            stride=stride, 
-            padding=padding
-            )
+            in_channels=input_size,
+            out_channels=conv1_out_dim,
+            kernel_size=kernel,
+            stride=stride,
+            padding=padding,
+        )
         self.relu = nn.ReLU()
         self.pool = nn.MaxPool1d(kernel_size=2)
         self.conv2 = nn.Conv1d(
-            in_channels=conv1_out_dim, 
-            out_channels=conv2_out_dim, 
-            kernel_size=kernel, 
-            stride=stride, 
-            padding=padding
-            )
+            in_channels=conv1_out_dim,
+            out_channels=conv2_out_dim,
+            kernel_size=kernel,
+            stride=stride,
+            padding=padding,
+        )
 
     def forward(self, x):
         x = x.transpose(1, 2)

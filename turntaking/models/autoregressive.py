@@ -8,42 +8,32 @@ from turntaking.models.cnn import CNN
 
 
 class AR(nn.Module):
-    def __init__(
-        self,
-        conf
-    ):
+    def __init__(self, conf):
         super().__init__()
         self.dim = conf["input_size"]
         self.num_layers = conf["num_layers"]
         self.dropout = conf["dropout"]
         self.ar_type = conf["type"]
-        self.ar = self._ar(
-            conf["type"], 
-            conf["model_kwargs"]
-            )
+        self.ar = self._ar(conf["type"], conf["model_kwargs"])
 
-    def _ar(
-        self, 
-        ar,
-        model_kwargs
-        ):
+    def _ar(self, ar, model_kwargs):
         ar = ar.lower()
         ret = nn.Identity()
 
         if ar == "gru":
             ret = nn.GRU(
-                input_size=self.dim, 
-                hidden_size=model_kwargs["GRU"]["dff_k"]*self.dim, 
-                num_layers=self.num_layers, 
+                input_size=self.dim,
+                hidden_size=model_kwargs["GRU"]["dff_k"] * self.dim,
+                num_layers=self.num_layers,
                 batch_first=model_kwargs["GRU"]["batch_first"],
                 bias=model_kwargs["GRU"]["bias"],
-                dropout=self.dropout
+                dropout=self.dropout,
             )
         elif ar == "lstm":
             ret = nn.LSTM(
-                input_size=self.dim, 
-                hidden_size=model_kwargs["LSTM"]["dff_k"]*self.dim, 
-                num_layers=self.num_layers, 
+                input_size=self.dim,
+                hidden_size=model_kwargs["LSTM"]["dff_k"] * self.dim,
+                num_layers=self.num_layers,
                 batch_first=model_kwargs["LSTM"]["batch_first"],
                 dropout=self.dropout,
             )
@@ -69,10 +59,12 @@ class AR(nn.Module):
         elif ar == "conformer":
             ret = Conformer(
                 input_size=self.dim,
-                ffn_dim=self.dim*model_kwargs["Conformer"]["dff_k"],
+                ffn_dim=self.dim * model_kwargs["Conformer"]["dff_k"],
                 num_layers=self.num_layers,
                 num_heads=model_kwargs["Conformer"]["num_heads"],
-                depthwise_conv_kernel_size=model_kwargs["Conformer"]["conv_kernel_size"],
+                depthwise_conv_kernel_size=model_kwargs["Conformer"][
+                    "conv_kernel_size"
+                ],
                 dropout=self.dropout,
                 convolution_first=model_kwargs["Conformer"]["convolution_first"],
                 use_pos_emb=model_kwargs["Conformer"]["use_pos_emb"],
@@ -85,9 +77,13 @@ class AR(nn.Module):
                 dropout=self.dropout,
                 feed_forward_expansion_factor=model_kwargs["Squeezeformer"]["dff_k"],
                 conv_kernel_size=model_kwargs["Squeezeformer"]["conv_kernel_size"],
-                conv_expansion_factor=model_kwargs["Squeezeformer"]["conv_expansion_factor"],
+                conv_expansion_factor=model_kwargs["Squeezeformer"][
+                    "conv_expansion_factor"
+                ],
                 reduce_layer_index=model_kwargs["Squeezeformer"]["reduce_layer_index"],
-                recover_layer_index=model_kwargs["Squeezeformer"]["recover_layer_index"],
+                recover_layer_index=model_kwargs["Squeezeformer"][
+                    "recover_layer_index"
+                ],
                 half_step_residual=model_kwargs["Squeezeformer"]["half_step_residual"],
             )
         else:

@@ -2,11 +2,11 @@ import torch
 import torch.nn as nn
 import einops
 from einops.layers.torch import Rearrange
-from pprint import pprint
 
 from turntaking.models.cpc_base_model import load_CPC
 from turntaking.models.cnn import CConv1d, LayerNorm
 from turntaking.models.autoregressive import AR
+
 
 def get_cnn_layer(dim, kernel, stride, dilation, activation):
     layers = [Rearrange("b t d -> b d t")]
@@ -16,6 +16,7 @@ def get_cnn_layer(dim, kernel, stride, dilation, activation):
         layers.append(getattr(torch.nn, activation)())
     layers.append(Rearrange("b d t -> b t d"))
     return nn.Sequential(*layers)
+
 
 class Encoder_Separated(nn.Module):
     def __init__(self, conf, freeze=True):
@@ -30,7 +31,7 @@ class Encoder_Separated(nn.Module):
 
         if self.conf["user1_input"]:
             self._initialize_module("user_1")
-        elif self.conf["user2_input"]: 
+        elif self.conf["user2_input"]:
             self._initialize_module("user_2")
 
         if not (self.conf["user1_input"] or self.conf["user2_input"]):
@@ -98,5 +99,11 @@ class Encoder_Separated(nn.Module):
         if self.conf["user2_input"]:
             z_2 = self._process_waveform(waveform_2, "user_2")
 
-        z = z_1 + z_2 if self.conf["user1_input"] and self.conf["user2_input"] else z_1 if self.conf["user1_input"] else z_2
+        z = (
+            z_1 + z_2
+            if self.conf["user1_input"] and self.conf["user2_input"]
+            else z_1
+            if self.conf["user1_input"]
+            else z_2
+        )
         return {"z": z}

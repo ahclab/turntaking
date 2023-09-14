@@ -2,11 +2,11 @@ import torch
 import torch.nn as nn
 import einops
 from einops.layers.torch import Rearrange
-from pprint import pprint
 
 from turntaking.models.cpc_base_model import load_CPC
 from turntaking.models.cnn import CConv1d, LayerNorm
 from turntaking.models.autoregressive import AR
+
 
 def get_cnn_layer(dim, kernel, stride, dilation, activation):
     layers = [Rearrange("b t d -> b d t")]
@@ -16,6 +16,7 @@ def get_cnn_layer(dim, kernel, stride, dilation, activation):
         layers.append(getattr(torch.nn, activation)())
     layers.append(Rearrange("b d t -> b t d"))
     return nn.Sequential(*layers)
+
 
 def Out_to_Linear():
     layers = []
@@ -35,6 +36,7 @@ def DownSample(dim, norm_dim, kernel, stride, dilation, activation):
     # layers.append(Rearrange("b d t -> b t d"))
     return nn.Sequential(*layers)
 
+
 def Pool(dim, kernel, stride, dilation, activation):
     layers = []
     for k, s, d in zip(kernel, stride, dilation):
@@ -42,6 +44,7 @@ def Pool(dim, kernel, stride, dilation, activation):
         layers.append(LayerNorm(dim))
         layers.append(getattr(torch.nn, activation)())
     return nn.Sequential(*layers)
+
 
 def UpSample(dim, kernel, stride, dilation, activation):
     # layers = []
@@ -127,7 +130,11 @@ class Encoder(nn.Module):
     def forward(self, waveform):
         z = self.encode(waveform)
         z = self.downsample(z)
-        z = self.module(z)["z"] if not isinstance(self.module, nn.Identity) else self.module(z)
+        z = (
+            self.module(z)["z"]
+            if not isinstance(self.module, nn.Identity)
+            else self.module(z)
+        )
         return {"z": z}
 
 
