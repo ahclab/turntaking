@@ -113,7 +113,7 @@ class Test:
             "hold_recall": events_score["hold"]["recall"].item(),
         }
         print("-" * 60)
-        print("Test")
+        print("### Test ###")
         print("-" * 60)
         print(pd.DataFrame([result]))
         print("-" * 60)

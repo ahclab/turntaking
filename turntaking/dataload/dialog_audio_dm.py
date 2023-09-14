@@ -83,7 +83,6 @@ class DialogAudioDM(pl.LightningDataModule):
         num_workers=0,
         pin_memory=True,
         transforms=None,
-        multimodal=False,
         label_type="discrete",
         bin_times=[0.20, 0.40, 0.60, 0.80],
         pre_frames=2,
@@ -100,10 +99,6 @@ class DialogAudioDM(pl.LightningDataModule):
         self.audio_mono = audio_mono
         self.audio_duration = audio_duration
         self.sample_rate = sample_rate
-        if datasets == "noxi":
-            self.audio_per_user = True
-        elif datasets == "switchboard":
-            self.audio_per_user = False
         # Sliding Window Dataset
         self.audio_overlap = audio_overlap
         self.audio_normalize = audio_normalize
@@ -131,12 +126,6 @@ class DialogAudioDM(pl.LightningDataModule):
         self.batch_size = batch_size
         self.pin_memory = pin_memory
         self.num_workers = num_workers
-
-        # Multimodal Features
-        if self.vad_hz == 25:
-            self.multimodal = multimodal
-        else:
-            self.multimodal = False
 
         # Lable
         self.label_type = label_type
@@ -175,22 +164,15 @@ class DialogAudioDM(pl.LightningDataModule):
             print("SPLIT ERROR")
             exit(1)
 
-        if self.datasets != "noxi":
-            self.multimodal = False
-
-        # pprint(self.datasets)
-        # pprint(dset)
         return DialogAudioDataset(
             dataset=dset,
             transforms=self.transforms,
-            feature_extractor=None,
             type=self.type,
             audio_mono=self.audio_mono,
             audio_duration=self.audio_duration,
             audio_overlap=self.audio_overlap,
             audio_normalize=self.audio_normalize,
             sample_rate=self.sample_rate,
-            audio_per_user=self.audio_per_user,
             vad=self.vad,
             vad_hz=self.vad_hz,
             vad_horizon=self.vad_horizon,
@@ -198,7 +180,6 @@ class DialogAudioDM(pl.LightningDataModule):
             vad_history_times=self.vad_history_times,
             flip_channels=flip,
             flip_probability=0.5,
-            multimodal=self.multimodal,
             label_type=self.label_type,
             bin_times=self.bin_times,
             pre_frames=self.pre_frames,
@@ -208,63 +189,32 @@ class DialogAudioDM(pl.LightningDataModule):
 
     def setup(self, stage: Optional[str] = "fit"):
         """Loads the datasets"""
+        
+        # Define a helper function to avoid repetitive code
+        def get_dataset(split: str):
+            return get_dialog_audio_datasets(
+                datasets=self.datasets,
+                split=split,
+                train_files=self.train_files,
+                val_files=self.val_files,
+                test_files=self.test_files
+            )
+        
         if stage == "fit":
-            train_hf_dataset = get_dialog_audio_datasets(
-                datasets=self.datasets,
-                split="train",
-                train_files=self.train_files,
-                val_files=self.val_files,
-                test_files=self.test_files,
-            )
-            self.train_dset = self._dataset(train_hf_dataset, split="train")
-            val_hf_dataset = get_dialog_audio_datasets(
-                datasets=self.datasets,
-                split="val",
-                train_files=self.train_files,
-                val_files=self.val_files,
-                test_files=self.test_files,
-            )
-            self.val_dset = self._dataset(val_hf_dataset, split="val")
+            self.train_dset = self._dataset(get_dataset("train"), split="train")
+            self.val_dset = self._dataset(get_dataset("val"), split="val")
             self.test_dset = None
 
         elif stage == "test":
             self.train_dset = None
             self.val_dset = None
-            test_hf_dataset = get_dialog_audio_datasets(
-                datasets=self.datasets,
-                split="test",
-                train_files=self.train_files,
-                val_files=self.val_files,
-                test_files=self.test_files,
-            )
-            self.test_dset = self._dataset(test_hf_dataset, split="test")
+            self.test_dset = self._dataset(get_dataset("test"), split="test")
 
         else:
-            # pprint(self.datasets)
-            train_hf_dataset = get_dialog_audio_datasets(
-                datasets=self.datasets,
-                split="train",
-                train_files=self.train_files,
-                val_files=self.val_files,
-                test_files=self.test_files,
-            )
-            self.train_dset = self._dataset(train_hf_dataset, split="train")
-            val_hf_dataset = get_dialog_audio_datasets(
-                datasets=self.datasets,
-                split="val",
-                train_files=self.train_files,
-                val_files=self.val_files,
-                test_files=self.test_files,
-            )
-            self.val_dset = self._dataset(val_hf_dataset, split="val")
-            test_hf_dataset = get_dialog_audio_datasets(
-                datasets=self.datasets,
-                split="test",
-                train_files=self.train_files,
-                val_files=self.val_files,
-                test_files=self.test_files,
-            )
-            self.test_dset = self._dataset(test_hf_dataset, split="test")
+            self.train_dset = self._dataset(get_dataset("train"), split="train")
+            self.val_dset = self._dataset(get_dataset("val"), split="val")
+            self.test_dset = self._dataset(get_dataset("test"), split="test")
+
 
     def collate_fn(self, batch):
         def pad_tensor(tensor, target_size, dim=-1):
@@ -367,7 +317,7 @@ class DialogAudioDM(pl.LightningDataModule):
             pin_memory=self.pin_memory,
             collate_fn=self.collate_fn,
             num_workers=self.num_workers,
-            shuffle=False,
+            shuffle=True,
             worker_init_fn=self.seed_worker,
         )
 
@@ -454,7 +404,6 @@ if __name__ == "__main__":
         audio_overlap=9.5,
         vad_hz=25,
         num_workers=0,
-        multimodal=False,
     )
 
     dm.setup(None)

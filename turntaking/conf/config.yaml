@@ -12,7 +12,7 @@ train:
   max_epochs: 50
   patience: 3
   optimizer: "AdamW"
-  verbose: false
+  verbose: False
   checkpoint: 1
   device: "cuda:0"
   learning_rate: 3.63e-4
@@ -36,8 +36,6 @@ data:
   test_files: null
   batch_size: 128
   num_workers: 8
-  # Non-verbal
-  multimodal: true
   # Label
   label_type: ${model.vap.type}
   bin_times: ${model.vap.bin_times}

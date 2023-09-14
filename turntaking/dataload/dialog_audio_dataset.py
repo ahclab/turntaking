@@ -29,22 +29,18 @@ class DialogAudioDataset(Dataset):
     def __init__(
         self,
         dataset,
-        feature_extractor=None,
         type="sliding",
         # AUDIO #################################
         sample_rate: int = 16000,
         audio_mono=True,
         audio_duration=10,
         audio_normalize=True,
-        audio_per_user=False,
         # VAD #################################
         vad=True,
         vad_hz: int = 100,
         vad_horizon=2,
         vad_history=False,
         vad_history_times=[60, 30, 10, 5],
-        # Multimodal Features #################################
-        multimodal=False,
         # Sliding #################################
         audio_overlap=2,  # Sliding Window
         # IPU #################################
@@ -57,16 +53,14 @@ class DialogAudioDataset(Dataset):
         transforms=None,
         # LABEL #################################
         label_type="discrete",
-        # label_type="independent",
         bin_times=[0.20, 0.40, 0.60, 0.80],
-        # bin_times=[.5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5,  .5],
         pre_frames=2,
         threshold_ratio=0.5,
         undersampling=True,
     ):
         super().__init__()
         self.dataset = dataset  # Hugginface datasets
-        self.feature_extractor = feature_extractor
+        self.dataset_name = dataset["dataset_name"][0]
         self.transforms = transforms
         self.frame_mode = False
 
@@ -79,7 +73,6 @@ class DialogAudioDataset(Dataset):
         self.audio_step_time = round(audio_duration - audio_overlap, 3)
         self.audio_normalize = audio_normalize
         self.audio_normalize_threshold = 0.05
-        self.audio_per_user = audio_per_user
 
         # VAD parameters
         self.vad = vad  # use vad or not
@@ -87,12 +80,6 @@ class DialogAudioDataset(Dataset):
         self.vad_hop_time = 1 / vad_hz
 
         self.audio_overlap_frame = audio_duration - self.vad_hop_time
-
-        # Multimodal parameters
-        if self.vad_hz == 25:
-            self.multimodal = multimodal  # use multimodal features or not
-        else:
-            self.multimodal = False  # use multimodal features or not
 
         # Vad prediction labels
         self.horizon_time = vad_horizon
@@ -571,7 +558,7 @@ class DialogAudioDataset(Dataset):
             "label": label_tensor,
         }
 
-        if self.audio_per_user:
+        if self.dataset_name == "noxi":
             for key in ["waveform_expert", "waveform_novice"]:
                 if key in self.data:
                     ret[key] = self.data[key][dset_idx][
@@ -591,7 +578,7 @@ class DialogAudioDataset(Dataset):
                     :, start_vad_idx:end_vad_idx, :
                 ]
 
-        if self.multimodal:
+        if self.dataset_name == "noxi":
             for key in [
                 "gaze_expert",
                 "au_expert",
@@ -609,14 +596,13 @@ class DialogAudioDataset(Dataset):
             ret["vad"] = torch.stack((ret["vad"][:, :, 1], ret["vad"][:, :, 0]), dim=-1)
             if self.vad and self.vad_history:
                 ret["vad_history"] = 1 - ret["vad_history"]
-            if self.multimodal:
+            if self.dataset_name == "noxi":
                 for key1, key2 in zip(
                     ["gaze_expert", "au_expert", "pose_expert", "head_expert"],
                     ["gaze_novice", "au_novice", "pose_novice", "head_novice"],
                 ):
                     ret[key1], ret[key2] = ret[key2], ret[key1]
 
-            if self.audio_per_user:
                 ret["waveform_expert"], ret["waveform_novice"] = (
                     ret["waveform_novice"],
                     ret["waveform_expert"],
@@ -727,8 +713,6 @@ if __name__ == "__main__":
     #     dataset=dset_hf,
     #     type="sliding",
     #     vad_history=True,
-    #     audio_per_user=False,
-    #     multimodal=False,
     # )
     # print(dset)
     # print(f"Datasets Size: {len(dset)}")
@@ -749,8 +733,6 @@ if __name__ == "__main__":
     #     audio_overlap=0.5,
     #     audio_duration=1.0,
     #     vad_hz=25,
-    #     audio_per_user=False,
-    #     multimodal=False,
     # )
     # print(dset)
     # print(f"Datasets Size: {len(dset)}")
@@ -802,8 +784,6 @@ if __name__ == "__main__":
     dset = DialogAudioDataset(
         dataset=dset_hf,
         type="sliding",
-        audio_per_user=False,
-        multimodal=False,
         audio_overlap=9.5,
         vad_hz=25,
     )
@@ -893,8 +873,6 @@ if __name__ == "__main__":
         audio_overlap=0.5,
         audio_duration=1.0,
         vad_hz=25,
-        audio_per_user=False,
-        multimodal=False,
     )
     print(dset)
     print(f"Datasets Size: {len(dset)}")

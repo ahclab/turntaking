@@ -181,10 +181,7 @@ def main(cfg: DictConfig) -> None:
         set_seed(i)
 
         ### Train ###
-        if i == 0:
-            train = Train(cfg_dict, dm, output_path)
-        else:
-            train = Train(cfg_dict, dm, output_path, cfg_dict["train"]["verbose"])
+        train = Train(cfg_dict, dm, output_path, cfg_dict["train"]["verbose"])
         model = train.train()
 
         ### Test ###
