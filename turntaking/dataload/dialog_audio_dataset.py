@@ -17,9 +17,14 @@ from decimal import Decimal, ROUND_HALF_UP
 from concurrent.futures import ProcessPoolExecutor
 
 import torch.nn.functional as F
-
+import concurrent.futures
 from tqdm import tqdm
+import time
 import math
+
+import resource
+rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
+resource.setrlimit(resource.RLIMIT_NOFILE, (4096, rlimit[1]))
 
 class DialogAudioDataset(Dataset):
     def __init__(
@@ -246,14 +251,12 @@ class DialogAudioDataset(Dataset):
 
     def _load_multimodal(self, b):
         if b["dataset_name"] == "noxi":
-            gaze_expert = load_multimodal_features(b["multimodal_expert_path"], "gaze", self.normalize).unsqueeze(0).float()
-            au_expert = load_multimodal_features(b["multimodal_expert_path"], "au", self.normalize).unsqueeze(0).float()
-            pose_expert = load_multimodal_features(b["multimodal_expert_path"], "pose", self.normalize).unsqueeze(0).float()
-            head_expert = load_multimodal_features(b["multimodal_expert_path"], "head", self.normalize).unsqueeze(0).float()
-            gaze_novice = load_multimodal_features(b["multimodal_novice_path"], "gaze", self.normalize).unsqueeze(0).float()
-            au_novice = load_multimodal_features(b["multimodal_novice_path"], "au", self.normalize).unsqueeze(0).float()
-            pose_novice = load_multimodal_features(b["multimodal_novice_path"], "pose", self.normalize).unsqueeze(0).float()
-            head_novice = load_multimodal_features(b["multimodal_novice_path"], "head", self.normalize).unsqueeze(0).float()
+            gaze_expert, au_expert, pose_expert, head_expert = load_multimodal_features(
+                b["multimodal_expert_path"], self.normalize
+                )
+            gaze_novice, au_novice, pose_novice, head_novice = load_multimodal_features(
+                b["multimodal_novice_path"], self.normalize
+                )
         else:
             gaze_expert, au_expert, pose_expert, head_expert, gaze_novice, au_novice, pose_novice, head_novice = None, None, None, None, None, None, None, None
         
@@ -271,6 +274,77 @@ class DialogAudioDataset(Dataset):
         else:
             return self.emb(vap_bins)  # discrete
 
+    def _adjust_waveform_size(self, waveform, all_vad_frames_num):
+        audio_frame_num = int(self.sample_rate * all_vad_frames_num / self.vad_hz) - waveform.size(-1)
+        if audio_frame_num < 0:
+            return waveform[:, : int(self.sample_rate * all_vad_frames_num / self.vad_hz)]
+        elif audio_frame_num > 0:
+            padding = torch.zeros(1, audio_frame_num)
+            return torch.cat((waveform, padding), -1)
+        else:
+            return waveform
+
+    def _adjust_multimodal_size(self, multimodal, all_vad_frames_num):
+        padding_shape = multimodal.size(-1)
+        multimodal_frame_num = all_vad_frames_num - multimodal.size(-2)
+        if multimodal_frame_num < 0:
+            return multimodal[:, : all_vad_frames_num, :]
+        elif multimodal_frame_num > 0:
+            padding = torch.zeros(1, multimodal_frame_num, padding_shape)
+            return torch.cat((multimodal, padding), -2)
+        else:
+            return multimodal
+
+    def _process_data(self, b):
+        data_dict = {}
+
+        # Load the audio file and corresponding multimodal data
+        waveform, waveform_expert, waveform_novice = self._load_waveform(b)
+        vad, vad_history = self._load_vad(b)
+        lookahead = torch.zeros((1, self.vad_horizon, 2))
+        label = self._extract_label(torch.cat((vad, lookahead), -2))
+        gaze_expert, au_expert, pose_expert, head_expert, gaze_novice, au_novice, pose_novice, head_novice = self._load_multimodal(b)
+
+        # Shape the audio waveform and multimodal data
+        all_vad_frames_num = vad.size(1)
+        waveform = self._adjust_waveform_size(waveform, all_vad_frames_num)
+
+        is_noxi = b["dataset_name"] == "noxi"
+        if is_noxi:
+            waveform_expert = self._adjust_waveform_size(waveform_expert, all_vad_frames_num)
+            waveform_novice = self._adjust_waveform_size(waveform_novice, all_vad_frames_num)
+
+            gaze_expert = self._adjust_multimodal_size(gaze_expert, all_vad_frames_num)
+            au_expert = self._adjust_multimodal_size(au_expert, all_vad_frames_num)
+            pose_expert = self._adjust_multimodal_size(pose_expert, all_vad_frames_num)
+            head_expert = self._adjust_multimodal_size(head_expert, all_vad_frames_num)
+            gaze_novice = self._adjust_multimodal_size(gaze_novice, all_vad_frames_num)
+            au_novice = self._adjust_multimodal_size(au_novice, all_vad_frames_num)
+            pose_novice = self._adjust_multimodal_size(pose_novice, all_vad_frames_num)
+            head_novice = self._adjust_multimodal_size(head_novice, all_vad_frames_num)
+
+        # Append the data to the dictionary
+        data_dict["dataset_name"] = b["dataset_name"]
+        data_dict["session"] = b["session"]
+        data_dict["waveform"] = waveform
+        data_dict["vad"] = vad
+        data_dict["label"] = label
+        data_dict["vad_history"] = vad_history
+
+        if is_noxi:
+            data_dict["waveform_expert"] = waveform_expert
+            data_dict["waveform_novice"] = waveform_novice
+            data_dict["gaze_expert"] = gaze_expert
+            data_dict["au_expert"] = au_expert
+            data_dict["pose_expert"] = pose_expert
+            data_dict["head_expert"] = head_expert
+            data_dict["gaze_novice"] = gaze_novice
+            data_dict["au_novice"] = au_novice
+            data_dict["pose_novice"] = pose_novice
+            data_dict["head_novice"] = head_novice
+    
+
+        return data_dict
 
     def _get_all(self):
         # Initialize the dictionary to store data
@@ -293,82 +367,111 @@ class DialogAudioDataset(Dataset):
             "head_novice": [],
         }
 
-        def adjust_waveform_size(waveform):
-            audio_frame_num = int(self.sample_rate * all_vad_frames_num / self.vad_hz) - waveform.size(-1)
-            if audio_frame_num < 0:
-                return waveform[:, : int(self.sample_rate * all_vad_frames_num / self.vad_hz)]
-            elif audio_frame_num > 0:
-                padding = torch.zeros(1, audio_frame_num)
-                return torch.cat((waveform, padding), -1)
-            else:
-                return waveform
+        with concurrent.futures.ProcessPoolExecutor() as executor:
+            results = list(tqdm(executor.map(self._process_data, [self.dataset[i] for i in range(len(self.dataset["audio_path"]))]), total=len(self.dataset["audio_path"])))
 
-        def adjust_multimodal_size(multimodal):
-            padding_shape = multimodal.size(-1)
-            multimodal_frame_num = all_vad_frames_num - multimodal.size(-2)
-            if multimodal_frame_num < 0:
-                return multimodal[:, : all_vad_frames_num, :]
-            elif multimodal_frame_num > 0:
-                padding = torch.zeros(1, multimodal_frame_num, padding_shape)
-                return torch.cat((multimodal, padding), -2)
-            else:
-                return multimodal
+        for result in results:
+            for key, value in result.items():
+                self.data[key].append(value)
         
-        # Loop through all audio files in the dataset
-        for i in tqdm(range(len(self.dataset["audio_path"]))):
-            # Load the audio file and corresponding multimodal data
-            b = self.dataset[i]
-            waveform, waveform_expert, waveform_novice = self._load_waveform(b)
-            vad, vad_history = self._load_vad(b)
-            lookahead = torch.zeros((1, self.vad_horizon, 2))
-            label = self._extract_label(torch.cat((vad, lookahead), -2))
-            gaze_expert, au_expert, pose_expert, head_expert, gaze_novice, au_novice, pose_novice, head_novice = self._load_multimodal(b)
-
-            # Shape the audio waveform and multimodal data
-            all_vad_frames_num = vad.size(1)
-
-            waveform = adjust_waveform_size(waveform)
-
-            is_noxi = b["dataset_name"] == "noxi"
-            if is_noxi:
-                waveform_expert = adjust_waveform_size(waveform_expert)
-                waveform_novice = adjust_waveform_size(waveform_novice)
-
-                gaze_expert = adjust_multimodal_size(gaze_expert)
-                au_expert = adjust_multimodal_size(au_expert)
-                pose_expert = adjust_multimodal_size(pose_expert)
-                head_expert = adjust_multimodal_size(head_expert)
-                gaze_novice = adjust_multimodal_size(gaze_novice)
-                au_novice = adjust_multimodal_size(au_novice)
-                pose_novice = adjust_multimodal_size(pose_novice)
-                head_novice = adjust_multimodal_size(head_novice)
-
-            # Append the data to the dictionary
-            self.data["dataset_name"].append(b["dataset_name"])
-            self.data["session"].append(b["session"])
-            self.data["waveform"].append(waveform)
-
-            self.data["vad"].append(vad)
-            self.data["label"].append(label)
-            self.data["vad_history"].append(vad_history)
-
-            if is_noxi:
-                self.data["waveform_expert"].append(waveform_expert)
-                self.data["waveform_novice"].append(waveform_novice)
-
-                self.data["gaze_expert"].append(gaze_expert)
-                self.data["au_expert"].append(au_expert)
-                self.data["pose_expert"].append(pose_expert)
-                self.data["head_expert"].append(head_expert)
-                self.data["gaze_novice"].append(gaze_novice)
-                self.data["au_novice"].append(au_novice)
-                self.data["pose_novice"].append(pose_novice)
-                self.data["head_novice"].append(head_novice)
-        
-            
         empty_keys = [key for key, value in self.data.items() if value == [] or (isinstance(value, list) and all(v is None for v in value))]
         for key in empty_keys:
             del self.data[key]
+
+
+    # def _get_all(self):
+    #     # Initialize the dictionary to store data
+    #     self.data = {
+    #         "dataset_name": [],
+    #         "session": [],
+    #         "waveform": [],
+    #         "waveform_expert": [],
+    #         "waveform_novice": [],
+    #         "vad": [],
+    #         "label": [],
+    #         "vad_history": [],
+    #         "gaze_expert": [],
+    #         "au_expert": [],
+    #         "pose_expert": [],
+    #         "head_expert": [],
+    #         "gaze_novice": [],
+    #         "au_novice": [],
+    #         "pose_novice": [],
+    #         "head_novice": [],
+    #     }
+
+    #     def adjust_waveform_size(waveform):
+    #         audio_frame_num = int(self.sample_rate * all_vad_frames_num / self.vad_hz) - waveform.size(-1)
+    #         if audio_frame_num < 0:
+    #             return waveform[:, : int(self.sample_rate * all_vad_frames_num / self.vad_hz)]
+    #         elif audio_frame_num > 0:
+    #             padding = torch.zeros(1, audio_frame_num)
+    #             return torch.cat((waveform, padding), -1)
+    #         else:
+    #             return waveform
+
+    #     def adjust_multimodal_size(multimodal):
+    #         padding_shape = multimodal.size(-1)
+    #         multimodal_frame_num = all_vad_frames_num - multimodal.size(-2)
+    #         if multimodal_frame_num < 0:
+    #             return multimodal[:, : all_vad_frames_num, :]
+    #         elif multimodal_frame_num > 0:
+    #             padding = torch.zeros(1, multimodal_frame_num, padding_shape)
+    #             return torch.cat((multimodal, padding), -2)
+    #         else:
+    #             return multimodal
+
+    #     for i in tqdm(range(len(self.dataset["audio_path"]))):
+    #         # Load the audio file and corresponding multimodal data
+    #         b = self.dataset[i]
+    #         waveform, waveform_expert, waveform_novice = self._load_waveform(b)
+    #         vad, vad_history = self._load_vad(b)
+    #         lookahead = torch.zeros((1, self.vad_horizon, 2))
+    #         label = self._extract_label(torch.cat((vad, lookahead), -2))
+    #         gaze_expert, au_expert, pose_expert, head_expert, gaze_novice, au_novice, pose_novice, head_novice = self._load_multimodal(b)
+
+    #         # Shape the audio waveform and multimodal data
+    #         all_vad_frames_num = vad.size(1)
+
+    #         waveform = adjust_waveform_size(waveform)
+
+    #         is_noxi = b["dataset_name"] == "noxi"
+    #         if is_noxi:
+    #             waveform_expert = adjust_waveform_size(waveform_expert)
+    #             waveform_novice = adjust_waveform_size(waveform_novice)
+
+    #             gaze_expert = adjust_multimodal_size(gaze_expert)
+    #             au_expert = adjust_multimodal_size(au_expert)
+    #             pose_expert = adjust_multimodal_size(pose_expert)
+    #             head_expert = adjust_multimodal_size(head_expert)
+    #             gaze_novice = adjust_multimodal_size(gaze_novice)
+    #             au_novice = adjust_multimodal_size(au_novice)
+    #             pose_novice = adjust_multimodal_size(pose_novice)
+    #             head_novice = adjust_multimodal_size(head_novice)
+
+    #         # Append the data to the dictionary
+    #         self.data["dataset_name"].append(b["dataset_name"])
+    #         self.data["session"].append(b["session"])
+    #         self.data["waveform"].append(waveform)
+    #         self.data["vad"].append(vad)
+    #         self.data["label"].append(label)
+    #         self.data["vad_history"].append(vad_history)
+
+    #         if is_noxi:
+    #             self.data["waveform_expert"].append(waveform_expert)
+    #             self.data["waveform_novice"].append(waveform_novice)
+    #             self.data["gaze_expert"].append(gaze_expert)
+    #             self.data["au_expert"].append(au_expert)
+    #             self.data["pose_expert"].append(pose_expert)
+    #             self.data["head_expert"].append(head_expert)
+    #             self.data["gaze_novice"].append(gaze_novice)
+    #             self.data["au_novice"].append(au_novice)
+    #             self.data["pose_novice"].append(pose_novice)
+    #             self.data["head_novice"].append(head_novice)
+            
+    #     empty_keys = [key for key, value in self.data.items() if value == [] or (isinstance(value, list) and all(v is None for v in value))]
+    #     for key in empty_keys:
+    #         del self.data[key]
 
 
     def get_full_sample(self):
