@@ -26,7 +26,7 @@ data:
   audio_duration: 1
   audio_normalize: false # If pre-processing is done beforehand, false is fine.
   audio_overlap: 0.5
-  expert_and_novice: true
+  audio_per_user: true
   # VAD
   vad_hz: ${model.encoder.frame_hz}
   vad_horizon: 2
@@ -40,7 +40,6 @@ data:
   num_workers: 8
   # Non-verbal
   multimodal: true
-  normalize: "batch_normalization" # or "min-max"
   # Label
   label_type: ${model.vap.type}
   bin_times: ${model.vap.bin_times}

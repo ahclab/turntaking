@@ -72,7 +72,7 @@ class DialogAudioDM(pl.LightningDataModule):
         ipu_min_time=1,
         ipu_pause_time=0.2,
         sample_rate=16000,
-        expert_and_novice=False,
+        audio_per_user=False,
         vad=True,
         vad_hz=100,
         vad_horizon=2,
@@ -87,7 +87,6 @@ class DialogAudioDM(pl.LightningDataModule):
         pin_memory=True,
         transforms=None,
         multimodal=False,
-        normalize="batch_normalization",
         label_type="discrete",
         bin_times=[0.20, 0.40, 0.60, 0.80],
         pre_frames=2,
@@ -113,7 +112,7 @@ class DialogAudioDM(pl.LightningDataModule):
         self.audio_mono = audio_mono
         self.audio_duration = audio_duration
         self.sample_rate = sample_rate
-        self.expert_and_novice = expert_and_novice
+        self.audio_per_user = audio_per_user
 
         # Sliding Window Dataset
         self.audio_overlap = audio_overlap
@@ -148,7 +147,6 @@ class DialogAudioDM(pl.LightningDataModule):
             self.multimodal = multimodal
         else:
             self.multimodal = False
-        self.normalize = normalize
 
         # Lable
         self.label_type = label_type
@@ -206,7 +204,7 @@ class DialogAudioDM(pl.LightningDataModule):
             audio_overlap=self.audio_overlap,
             audio_normalize=self.audio_normalize,
             sample_rate=self.sample_rate,
-            expert_and_novice=self.expert_and_novice,
+            audio_per_user=self.audio_per_user,
             vad=self.vad,
             vad_hz=self.vad_hz,
             vad_horizon=self.vad_horizon,
@@ -215,7 +213,6 @@ class DialogAudioDM(pl.LightningDataModule):
             flip_channels=flip,
             flip_probability=0.5,
             multimodal=self.multimodal,
-            normalize=self.normalize,
             label_type=self.label_type,
             bin_times=self.bin_times,
             pre_frames=self.pre_frames,
@@ -469,7 +466,7 @@ if __name__ == "__main__":
         datasets=["noxi"],
         audio_duration=10,
         audio_overlap=9.5,
-        expert_and_novice=False,
+        audio_per_user=False,
         vad_hz=25,
         num_workers=0,
         multimodal=False,
