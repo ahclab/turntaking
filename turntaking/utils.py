@@ -71,8 +71,8 @@ def everything_deterministic():
     torch.use_deterministic_algorithms(True, warn_only=True)
 
 
-def set_seed(seed = None):
-    if seed == None:
+def set_seed(seed=None):
+    if seed is None:
         seed = random.randint(1, 1000)
 
     pl.seed_everything(seed)
@@ -84,8 +84,8 @@ def set_seed(seed = None):
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
 
-def randomize_seed():
 
+def randomize_seed():
     # Use the system time to generate a new seed
     new_seed = int(time.time())
 
@@ -401,6 +401,7 @@ def load_waveform(
             sr = sample_rate
     return x, sr
 
+
 def get_tg_vad_list(tg):
     """only a single speaker"""
     vad_list = []
@@ -408,10 +409,17 @@ def get_tg_vad_list(tg):
         vad_list.append([s, e])
     return [vad_list, []]
 
+
 def set_debug_mode(cfg_dict):
-    cfg_dict["data"]["train_files"] = "turntaking/dataload/dataset/noxi/files/debug_train.txt"
-    cfg_dict["data"]["val_files"] = "turntaking/dataload/dataset/noxi/files/debug_val.txt"
-    cfg_dict["data"]["test_files"] = "turntaking/dataload/dataset/noxi/files/debug_test.txt"
+    cfg_dict["data"][
+        "train_files"
+    ] = "turntaking/dataload/dataset/noxi/files/debug_train.txt"
+    cfg_dict["data"][
+        "val_files"
+    ] = "turntaking/dataload/dataset/noxi/files/debug_val.txt"
+    cfg_dict["data"][
+        "test_files"
+    ] = "turntaking/dataload/dataset/noxi/files/debug_test.txt"
     cfg_dict["train"]["max_epochs"] = 1
     cfg_dict["train"]["checkpoint"] = 1
     cfg_dict["train"]["num_workers"] = 0

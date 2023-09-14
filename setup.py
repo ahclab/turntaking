@@ -9,5 +9,10 @@ setup(
     author="kazuyo Onishi",
     author_email="onishi.kazuyo.oi5@is.naist.jp",
     url="https://github.com/ahclab/turntaking",
-    packages=["turntaking", "turntaking.models", "turntaking.evaluation", "turntaking.dataload"],
+    packages=[
+        "turntaking",
+        "turntaking.models",
+        "turntaking.evaluation",
+        "turntaking.dataload",
+    ],
 )

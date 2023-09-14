@@ -10,7 +10,7 @@ from turntaking.models import Encoder, Encoder_Separated, AR
 from turntaking.utils import to_device
 from vap_turn_taking import VAP, TurnTakingMetrics
 from torchinfo import summary
-import numpy as np
+
 
 class VadCondition(nn.Module):
     def __init__(self, conf):
@@ -33,13 +33,16 @@ class VadCondition(nn.Module):
 
         return self.ln(v_cond)
 
+
 class AudioCondition(nn.Module):
     def __init__(self, conf):
         super().__init__()
         self.conf = conf
 
         self.encoder = self._init_module("encoder", Encoder)
-        self.encoder_separated = self._init_module("encoder_separated_audio", Encoder_Separated)
+        self.encoder_separated = self._init_module(
+            "encoder_separated_audio", Encoder_Separated
+        )
         self.vad_condition = self._init_module("va_cond", VadCondition)
         self.audio_module = self._init_module("audio_module", AR)
 
@@ -47,16 +50,18 @@ class AudioCondition(nn.Module):
         if self.conf[conf_key]["use_module"]:
             return module_class(self.conf[conf_key])
         return nn.Identity()
-    
+
     def forward(self, **kwargs):
         wc = vc = torch.tensor([])
         encoder = False
 
         if self.conf["encoder"]["use_module"]:
-            wc = self.encoder(kwargs["waveform"])["z"][:, :kwargs["va"].shape[1]]
+            wc = self.encoder(kwargs["waveform"])["z"][:, : kwargs["va"].shape[1]]
             encoder = True
         elif self.conf["encoder_separated_audio"]["use_module"]:
-            wc = self.encoder_separated(kwargs["waveform_user1"], kwargs["waveform_user2"])["z"][:, :kwargs["va"].shape[1]]
+            wc = self.encoder_separated(
+                kwargs["waveform_user1"], kwargs["waveform_user2"]
+            )["z"][:, : kwargs["va"].shape[1]]
             encoder = True
 
         if self.conf["va_cond"]["use_module"]:
@@ -64,16 +69,21 @@ class AudioCondition(nn.Module):
 
         z = None
         if encoder and self.conf["va_cond"]["use_module"]:
-            z = wc + vc[:, :wc.shape[1]]
+            z = wc + vc[:, : wc.shape[1]]
         elif encoder:
             z = wc
         elif self.conf["va_cond"]["use_module"]:
             z = vc
 
         if z is not None:
-            z = self.audio_module(z)["z"] if not isinstance(self.audio_module, nn.Identity) else self.audio_module(z)
+            z = (
+                self.audio_module(z)["z"]
+                if not isinstance(self.audio_module, nn.Identity)
+                else self.audio_module(z)
+            )
 
         return z
+
 
 class VAPHead(nn.Module):
     def __init__(self, conf):
@@ -114,6 +124,7 @@ class VAPHead(nn.Module):
         x = self.projection_head(x)
         return x
 
+
 class NonVerbalCondition(nn.Module):
     def __init__(self, conf):
         super().__init__()
@@ -129,35 +140,64 @@ class NonVerbalCondition(nn.Module):
 
         for flag in flags:
             if self.flags[flag]:
-                setattr(self, f"{flag}_linear", nn.Linear(num_features[flag], conf[flag][f"{flag}_module"]["input_size"]))
-                setattr(self, f"{flag}_ln", nn.LayerNorm(conf[flag][f"{flag}_module"]["input_size"]))
+                setattr(
+                    self,
+                    f"{flag}_linear",
+                    nn.Linear(
+                        num_features[flag], conf[flag][f"{flag}_module"]["input_size"]
+                    ),
+                )
+                setattr(
+                    self,
+                    f"{flag}_ln",
+                    nn.LayerNorm(conf[flag][f"{flag}_module"]["input_size"]),
+                )
 
-                module = AR(conf[flag][f"{flag}_module"]) if conf[flag][f"{flag}_module"]["use_module"] else nn.Identity()
+                module = (
+                    AR(conf[flag][f"{flag}_module"])
+                    if conf[flag][f"{flag}_module"]["use_module"]
+                    else nn.Identity()
+                )
                 if self.conf["user1_input"] and self.conf["user2_input"]:
-                    for user in ['user1', 'user2']:
+                    for user in ["user1", "user2"]:
                         setattr(self, f"{flag}_module_{user}", module)
                 elif self.conf["user1_input"]:
                     setattr(self, f"{flag}_module_user1", module)
                 elif self.conf["user2_input"]:
                     setattr(self, f"{flag}_module_user2", module)
                 else:
-                    print("Error: NonVerbalCondition must be true for either user1_input or user2_input")
+                    print(
+                        "Error: NonVerbalCondition must be true for either user1_input or user2_input"
+                    )
                     exit(1)
 
-        self.conf["non_verbal_module"]["input_size"] = sum(conf[flag][f"{flag}_module"]["input_size"] for flag in flags if self.flags[flag])
+        self.conf["non_verbal_module"]["input_size"] = sum(
+            conf[flag][f"{flag}_module"]["input_size"]
+            for flag in flags
+            if self.flags[flag]
+        )
         self.batch_norm = nn.BatchNorm1d(self.conf["t_dim"])
         self.non_verbal_module = self._init_module("non_verbal_module", AR)
 
-        self.linear = nn.Linear(sum(conf[flag][f"{flag}_module"]["input_size"] for flag in flags if self.flags[flag]), conf["linear"]["output_size"])
+        self.linear = nn.Linear(
+            sum(
+                conf[flag][f"{flag}_module"]["input_size"]
+                for flag in flags
+                if self.flags[flag]
+            ),
+            conf["linear"]["output_size"],
+        )
         self.ln = nn.LayerNorm(conf["linear"]["output_size"])
-    
+
     def _init_module(self, conf_key, module_class):
         if self.conf[conf_key]["use_module"]:
             return module_class(self.conf[conf_key])
         return nn.Identity()
 
     def get_module_output(self, module, input):
-        return module(input)["z"] if not isinstance(module, nn.Identity) else module(input)
+        return (
+            module(input)["z"] if not isinstance(module, nn.Identity) else module(input)
+        )
 
     def forward(self, **kwargs):
         conditions = []
@@ -225,29 +265,32 @@ class Net(nn.Module):
 
         if self.conf["audio_cond"]["use_module"]:
             ac = self.audio_cond(
-                waveform=kwargs['waveform'], 
-                va=kwargs['va'], 
-                waveform_user1=kwargs.get('waveform_expert', None), 
-                waveform_user2=kwargs.get('waveform_novice', None), 
-                va_history=kwargs.get('va_history', None)
+                waveform=kwargs["waveform"],
+                va=kwargs["va"],
+                waveform_user1=kwargs.get("waveform_expert", None),
+                waveform_user2=kwargs.get("waveform_novice", None),
+                va_history=kwargs.get("va_history", None),
             )
-            ac = ac[:, :kwargs['va'].shape[1]]
+            ac = ac[:, : kwargs["va"].shape[1]]
 
         if self.conf["non_verbal_cond"]["use_module"]:
             nc = self.non_verbal_cond(
-                gaze_user1=kwargs.get('gaze_expert', None), 
-                au_user1=kwargs.get('au_expert', None), 
-                head_user1=kwargs.get('head_expert', None), 
-                pose_user1=kwargs.get('pose_expert', None),
-                gaze_user2=kwargs.get('gaze_novice', None), 
-                au_user2=kwargs.get('au_novice', None), 
-                head_user2=kwargs.get('head_novice', None), 
-                pose_user2=kwargs.get('pose_novice', None)
+                gaze_user1=kwargs.get("gaze_expert", None),
+                au_user1=kwargs.get("au_expert", None),
+                head_user1=kwargs.get("head_expert", None),
+                pose_user1=kwargs.get("pose_expert", None),
+                gaze_user2=kwargs.get("gaze_novice", None),
+                au_user2=kwargs.get("au_novice", None),
+                head_user2=kwargs.get("head_novice", None),
+                pose_user2=kwargs.get("pose_novice", None),
             )
-            nc = nc[:, :kwargs['va'].shape[1]]
+            nc = nc[:, : kwargs["va"].shape[1]]
 
         z = None
-        if self.conf["audio_cond"]["use_module"] & self.conf["non_verbal_cond"]["use_module"]:
+        if (
+            self.conf["audio_cond"]["use_module"]
+            & self.conf["non_verbal_cond"]["use_module"]
+        ):
             z = torch.cat((ac, nc), 2)
         elif self.conf["audio_cond"]["use_module"]:
             z = ac
@@ -257,7 +300,11 @@ class Net(nn.Module):
             print("Error: No Audio Condition or Non Verbal Conditon")
             exit(1)
 
-        z = self.main_module(z)["z"] if not isinstance(self.main_module, nn.Identity) else self.main_module(z)
+        z = (
+            self.main_module(z)["z"]
+            if not isinstance(self.main_module, nn.Identity)
+            else self.main_module(z)
+        )
         out = {"logits_vp": self.vap_head(z)}
 
         return out
@@ -267,19 +314,37 @@ class Model(pl.LightningModule):
     def __init__(self, conf) -> None:
         super().__init__()
         self.conf = conf
-        self.conf["model"]["vap"]["t_dim"] = self.conf["data"]["vad_hz"] * self.conf["data"]["audio_duration"]
-        self.conf["model"]["non_verbal_cond"]["t_dim"] = self.conf["data"]["vad_hz"] * self.conf["data"]["audio_duration"]
-        if self.conf["model"]["audio_cond"]["use_module"] & self.conf["model"]["non_verbal_cond"]["use_module"]:
-            self.conf["model"]["vap"]["d_dim"] = self.conf["model"]["audio_cond"]["audio_module"]["input_size"] + self.conf["model"]["non_verbal_cond"]["linear"]["output_size"]
+        self.conf["model"]["vap"]["t_dim"] = (
+            self.conf["data"]["vad_hz"] * self.conf["data"]["audio_duration"]
+        )
+        self.conf["model"]["non_verbal_cond"]["t_dim"] = (
+            self.conf["data"]["vad_hz"] * self.conf["data"]["audio_duration"]
+        )
+        if (
+            self.conf["model"]["audio_cond"]["use_module"]
+            & self.conf["model"]["non_verbal_cond"]["use_module"]
+        ):
+            self.conf["model"]["vap"]["d_dim"] = (
+                self.conf["model"]["audio_cond"]["audio_module"]["input_size"]
+                + self.conf["model"]["non_verbal_cond"]["linear"]["output_size"]
+            )
         elif self.conf["model"]["audio_cond"]["use_module"]:
-            self.conf["model"]["vap"]["d_dim"] = self.conf["model"]["audio_cond"]["audio_module"]["input_size"]
+            self.conf["model"]["vap"]["d_dim"] = self.conf["model"]["audio_cond"][
+                "audio_module"
+            ]["input_size"]
         elif self.conf["model"]["non_verbal_cond"]["use_module"]:
-            self.conf["model"]["vap"]["d_dim"] = self.conf["model"]["non_verbal_cond"]["linear"]["output_size"]
-        self.conf["model"]["main_module"]["input_size"] = self.conf["model"]["vap"]["d_dim"]
+            self.conf["model"]["vap"]["d_dim"] = self.conf["model"]["non_verbal_cond"][
+                "linear"
+            ]["output_size"]
+        self.conf["model"]["main_module"]["input_size"] = self.conf["model"]["vap"][
+            "d_dim"
+        ]
         self.frame_hz = self.conf["model"]["encoder"]["frame_hz"]
 
         # Network
-        self.net = Net(self.conf["model"]).to(conf["train"]["device"])  # x, vf, vh -> logits
+        self.net = Net(self.conf["model"]).to(
+            conf["train"]["device"]
+        )  # x, vf, vh -> logits
         self.vap_type = conf["model"]["vap"]["type"]
 
         # VAP: labels, logits -> zero-shot probs
@@ -298,16 +363,22 @@ class Model(pl.LightningModule):
         # Training params
         self.learning_rate = conf["train"]["learning_rate"]
         self.save_hyperparameters()
-    
+
     @property
     def model_summary(self):
-        frame_audio = self.conf["data"]["sample_rate"] * self.conf["data"]["audio_duration"]
+        frame_audio = (
+            self.conf["data"]["sample_rate"] * self.conf["data"]["audio_duration"]
+        )
         frame_vad = self.conf["data"]["vad_hz"] * self.conf["data"]["audio_duration"]
         inputs = {
             "waveform": torch.randn(self.conf["data"]["batch_size"], frame_audio),
             "va": torch.randn(self.conf["data"]["batch_size"], frame_vad, 2),
-            "waveform_expert": torch.randn(self.conf["data"]["batch_size"], frame_audio),
-            "waveform_novice": torch.randn(self.conf["data"]["batch_size"], frame_audio),
+            "waveform_expert": torch.randn(
+                self.conf["data"]["batch_size"], frame_audio
+            ),
+            "waveform_novice": torch.randn(
+                self.conf["data"]["batch_size"], frame_audio
+            ),
             "va_history": torch.randn(self.conf["data"]["batch_size"], frame_vad, 5),
             "gaze_expert": torch.randn(self.conf["data"]["batch_size"], frame_vad, 3),
             "au_expert": torch.randn(self.conf["data"]["batch_size"], frame_vad, 18),
@@ -320,15 +391,15 @@ class Model(pl.LightningModule):
         }
         inputs = to_device(inputs, self.conf["train"]["device"])
 
-        return summary( 
+        return summary(
             model=self.net,
             device=self.conf["train"]["device"],
             input_data=inputs,
             col_names=["input_size", "output_size", "num_params", "mult_adds"],
             depth=10,
             row_settings=["var_names"],
-            )
-    
+        )
+
     @property
     def inference_speed(self):
         inputs = {
@@ -351,15 +422,18 @@ class Model(pl.LightningModule):
         execution_times = []
 
         import time
+
         for _ in range(1000):
             time_start = time.perf_counter()
             self.net(**inputs)
             time_end = time.perf_counter()
-            
+
             execution_times.append(time_end - time_start)
 
         mean_time = sum(execution_times) / len(execution_times)
-        variance = sum([(x - mean_time)**2 for x in execution_times]) / len(execution_times)
+        variance = sum([(x - mean_time) ** 2 for x in execution_times]) / len(
+            execution_times
+        )
 
         return mean_time, variance
 
@@ -436,14 +510,14 @@ class Model(pl.LightningModule):
             waveform_expert=batch.get("waveform_expert", None),
             waveform_novice=batch.get("waveform_novice", None),
             va_history=batch.get("vad_history", None),
-            gaze_expert = batch.get("gaze_expert", None),
-            au_expert = batch.get("au_expert", None),
-            head_expert = batch.get("head_expert", None),
-            pose_expert = batch.get("pose_expert", None),
-            gaze_novice = batch.get("gaze_novice", None),
-            au_novice = batch.get("au_novice", None),
-            head_novice = batch.get("head_novice", None),
-            pose_novice = batch.get("pose_novice", None),
+            gaze_expert=batch.get("gaze_expert", None),
+            au_expert=batch.get("au_expert", None),
+            head_expert=batch.get("head_expert", None),
+            pose_expert=batch.get("pose_expert", None),
+            gaze_novice=batch.get("gaze_novice", None),
+            au_novice=batch.get("au_novice", None),
+            head_novice=batch.get("head_novice", None),
+            pose_novice=batch.get("pose_novice", None),
         )
         out["va_labels"] = batch["label"]
 
@@ -456,7 +530,7 @@ class Model(pl.LightningModule):
         out_loss = {"vp": loss.mean(), "total": loss.mean()}
         if reduction == "none":
             out_loss["frames"] = loss
-        
+
         return out_loss, out, batch
 
     def get_event_max_frames(self, batch):
@@ -472,17 +546,18 @@ class Model(pl.LightningModule):
             waveform_expert=batch.get("waveform_expert", None),
             waveform_novice=batch.get("waveform_novice", None),
             va_history=batch.get("vad_history", None),
-            gaze_expert = batch.get("gaze_expert", None),
-            au_expert = batch.get("au_expert", None),
-            head_expert = batch.get("head_expert", None),
-            pose_expert = batch.get("pose_expert", None),
-            gaze_novice = batch.get("gaze_novice", None),
-            au_novice = batch.get("au_novice", None),
-            head_novice = batch.get("head_novice", None),
-            pose_novice = batch.get("pose_novice", None),
+            gaze_expert=batch.get("gaze_expert", None),
+            au_expert=batch.get("au_expert", None),
+            head_expert=batch.get("head_expert", None),
+            pose_expert=batch.get("pose_expert", None),
+            gaze_novice=batch.get("gaze_novice", None),
+            au_novice=batch.get("au_novice", None),
+            head_novice=batch.get("head_novice", None),
+            pose_novice=batch.get("pose_novice", None),
         )
         out = to_device(out, out_device)
         return out
+
 
 def _test_model():
     from turntaking.utils import load_hydra_conf
@@ -493,7 +568,6 @@ def _test_model():
     model = Model(cfg_dict)
     print(model)
     model.val_metric = model.init_metric()
-    ss = model.val_metric.hs.stat_scores
 
 
 if __name__ == "__main__":

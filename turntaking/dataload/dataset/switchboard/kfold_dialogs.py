@@ -26,7 +26,6 @@ def write_kfolds(train_val, path=None):
 
 
 if __name__ == "__main__":
-
     # Load all files/dialogs-numbers
     train = read_txt("dataload/dataset/switchboard/files/train.txt")
     val = read_txt("dataload/dataset/switchboard/files/val.txt")
@@ -35,7 +34,7 @@ if __name__ == "__main__":
     # combine train+val but omit those which INCLUDES_ASIDES
     train_val = []
     for n_dialog in train + val:
-        if not n_dialog in INCLUDES_ASIDES:
+        if n_dialog not in INCLUDES_ASIDES:
             train_val.append(n_dialog)
 
     # save kfolds

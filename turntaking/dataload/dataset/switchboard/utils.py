@@ -10,6 +10,7 @@ OmitText = [
     "[vocalized-noise]",
 ]
 
+
 # Only used once, json file is included in repo
 def extract_audio_mapping(audio_root):
     """
@@ -254,9 +255,7 @@ def remove_words_from_dialog(dialog):
 
 
 if __name__ == "__main__":
-
     from os import listdir
-    from turntaking.dataload.utils import read_json
 
     extracted_path = "/home/is/kazuyo-oni/.cache/huggingface/datasets/downloads/extracted/4ed39d664783b37310fd9fc4b501dd9217086a1e9b0f1db4bf935181ed0c63de"
     session = "2001"
@@ -266,6 +265,6 @@ if __name__ == "__main__":
     session_dir = join(extracted_path, "swb_ms98_transcriptions", session[:2], session)
     print(listdir(session_dir))
     dialog = extract_dialog(session, session_dir)
-    #pprint(dialog)
+    # pprint(dialog)
     vad = extract_vad_list_from_words(dialog)
     pprint(vad)

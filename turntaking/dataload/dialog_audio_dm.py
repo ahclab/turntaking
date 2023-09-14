@@ -1,5 +1,4 @@
 import random
-from pprint import pprint
 from os import cpu_count, environ
 
 # omit verbose `datasets` info
@@ -151,7 +150,7 @@ class DialogAudioDM(pl.LightningDataModule):
             self.multimodal = False
         self.normalize = normalize
 
-        #Lable
+        # Lable
         self.label_type = label_type
         self.bin_times = bin_times
         self.pre_frames = pre_frames
@@ -188,9 +187,9 @@ class DialogAudioDM(pl.LightningDataModule):
             flip = False
             data = self.data_test
         else:
-            print(f"SPLIT ERROR")
+            print("SPLIT ERROR")
             exit(1)
-        
+
         if self.datasets != ["noxi"]:
             self.multimodal = False
 
@@ -224,7 +223,6 @@ class DialogAudioDM(pl.LightningDataModule):
             undersampling=self.undersampling,
         )
 
-
     def setup(self, stage: Optional[str] = "fit"):
         """Loads the datasets"""
         if stage == "fit":
@@ -257,7 +255,7 @@ class DialogAudioDM(pl.LightningDataModule):
                 test_files=self.test_files,
             )
             self.test_dset = self._dataset(test_hf_dataset, split="test")
-        
+
         else:
             # pprint(self.datasets)
             train_hf_dataset = get_dialog_audio_datasets(
@@ -289,13 +287,30 @@ class DialogAudioDM(pl.LightningDataModule):
         def pad_tensor(tensor, target_size, dim=-1):
             if tensor.size(dim) < target_size:
                 padding_size = target_size - tensor.size(dim)
-                padding = torch.zeros(*tensor.size()[:dim], padding_size, *tensor.size()[dim + 1:])
+                padding = torch.zeros(
+                    *tensor.size()[:dim], padding_size, *tensor.size()[dim + 1 :]
+                )
                 tensor = torch.cat((tensor, padding), dim)
             elif tensor.size(dim) > target_size:
                 tensor = tensor.narrow(dim, 0, target_size)
             return tensor
-        
-        keys = ["waveform", "waveform_expert", "waveform_novice", "vad", "vad_history", "gaze_expert", "au_expert", "pose_expert", "head_expert", "gaze_novice", "au_novice", "pose_novice", "head_novice", "label"]
+
+        keys = [
+            "waveform",
+            "waveform_expert",
+            "waveform_novice",
+            "vad",
+            "vad_history",
+            "gaze_expert",
+            "au_expert",
+            "pose_expert",
+            "head_expert",
+            "gaze_novice",
+            "au_novice",
+            "pose_novice",
+            "head_novice",
+            "label",
+        ]
         target_sizes = {
             "waveform": self.audio_duration * self.sample_rate,
             "waveform_expert": self.audio_duration * self.sample_rate,
@@ -313,24 +328,26 @@ class DialogAudioDM(pl.LightningDataModule):
             "label": len(self.bin_times) if self.label_type == "independent" else 1,
         }
         dimensions = {
-            "vad": -2, 
-            "vad_history": -2, 
-            "gaze_expert": -2, 
-            "au_expert": -2, 
-            "head_expert": -2, 
-            "pose_expert": -2, 
-            "gaze_novice": -2, 
-            "au_novice": -2, 
-            "head_novice": -2, 
+            "vad": -2,
+            "vad_history": -2,
+            "gaze_expert": -2,
+            "au_expert": -2,
+            "head_expert": -2,
+            "pose_expert": -2,
+            "gaze_novice": -2,
+            "au_novice": -2,
+            "head_novice": -2,
             "pose_novice": -2,
             "label": -1,
-            }
+        }
         ret = {key: [] for key in keys}
 
         for b in batch:
             for key in keys:
                 if key in b:
-                    ret[key].append(pad_tensor(b[key], target_sizes[key], dimensions.get(key, -1)))
+                    ret[key].append(
+                        pad_tensor(b[key], target_sizes[key], dimensions.get(key, -1))
+                    )
 
         ret = {key: torch.cat(value) for key, value in ret.items() if len(value) > 0}
         ret["dset_name"] = [b["dataset_name"] for b in batch]
@@ -347,7 +364,6 @@ class DialogAudioDM(pl.LightningDataModule):
             return self.test_dset.get_full_sample()
         else:
             return None
-    
 
     def change_frame_mode(self, mode="False"):
         if self.train_dset is not None:
@@ -356,11 +372,11 @@ class DialogAudioDM(pl.LightningDataModule):
             self.val_dset.change_frame_mode(mode)
         if self.test_dset is not None:
             self.test_dset.change_frame_mode(mode)
-    
+
     def seed_worker(self, worker_id):
         np.random.seed(worker_id)
         random.seed(worker_id)
-        
+
     def train_dataloader(self):
         return DataLoader(
             self.train_dset,
@@ -447,7 +463,6 @@ class DialogAudioDM(pl.LightningDataModule):
 
 
 if __name__ == "__main__":
-
     data_conf = DialogAudioDM.load_config()
 
     dm = DialogAudioDM(
@@ -471,43 +486,42 @@ if __name__ == "__main__":
         else:
             print(f"{k}: {v}")
 
-    print(f"FULL SAMPLE")
+    print("FULL SAMPLE")
     d = dm.get_full_sample("val")
     for k, v in d.items():
         if isinstance(v, torch.Tensor):
             print(f"{k}: {tuple(v.shape)}")
         else:
             print(f"{k}: {v}")
-    
+
     for i in range(len(dm.val_dset)):
         d = dm.val_dset[i]
-    
-    print(f"DATALOADER TEST")
+
+    print("DATALOADER TEST")
     pbar_val = tqdm(
-                enumerate(dm.train_dataloader()),
-                total=len(dm.train_dataloader()),
-            )
+        enumerate(dm.train_dataloader()),
+        total=len(dm.train_dataloader()),
+    )
     for ii, batch in pbar_val:
         pass
     pbar_val = tqdm(
-                enumerate(dm.val_dataloader()),
-                total=len(dm.val_dataloader()),
-            )
-    for ii, batch in pbar_val:
-        pass
-    
-    print(f"Frame Mode ON")
-    dm.change_frame_mode(True)
-    pbar_val = tqdm(
-                enumerate(dm.val_dataloader()),
-                total=len(dm.val_dataloader()),
-            )
-    for ii, batch in pbar_val:
-        pass
-    pbar_val = tqdm(
-                enumerate(dm.test_dataloader()),
-                total=len(dm.test_dataloader()),
-            )
+        enumerate(dm.val_dataloader()),
+        total=len(dm.val_dataloader()),
+    )
     for ii, batch in pbar_val:
         pass
 
+    print("Frame Mode ON")
+    dm.change_frame_mode(True)
+    pbar_val = tqdm(
+        enumerate(dm.val_dataloader()),
+        total=len(dm.val_dataloader()),
+    )
+    for ii, batch in pbar_val:
+        pass
+    pbar_val = tqdm(
+        enumerate(dm.test_dataloader()),
+        total=len(dm.test_dataloader()),
+    )
+    for ii, batch in pbar_val:
+        pass

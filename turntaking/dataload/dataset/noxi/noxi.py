@@ -8,7 +8,6 @@ from datasets import Value, Sequence
 from turntaking.dataload.dataset.noxi.utils import (
     extract_dialog,
     extract_vad_list,
-    remove_words_from_dialog,
 )
 from turntaking.dataload.utils import (
     read_txt,
@@ -22,7 +21,7 @@ EXTRACTED_PATH = "/ahc/work2/kazuyo-oni/projects/data/noxi"
 
 REL_AUDIO_PATH = join(
     repo_root(), "dataload/dataset/noxi/files/relative_audio_path.json"
-)  
+)
 SPLIT_PATH = os.path.join(repo_root(), "dataload/dataset/noxi/files")
 
 _HOMEPAGE = "https://noxi.aria-agent.eu"
@@ -54,7 +53,9 @@ FEATURES = {
     "novice_audio_path": Value("string"),
     "multimodal_expert_path": Value("string"),
     "multimodal_novice_path": Value("string"),
-    "vad": [[Sequence(Value("float"))],],
+    "vad": [
+        [Sequence(Value("float"))],
+    ],
 }
 
 
@@ -91,7 +92,12 @@ class NoxiConfig(datasets.BuilderConfig):
 class Noxi(datasets.GeneratorBasedBuilder):
     VERSION = datasets.Version("0.0.1")
     DEFAULT_CONFIG_NAME = "default"
-    BUILDER_CONFIGS = [NoxiConfig(name="default", description="NoXi dataset",)]
+    BUILDER_CONFIGS = [
+        NoxiConfig(
+            name="default",
+            description="NoXi dataset",
+        )
+    ]
 
     def _info(self) -> datasets.DatasetInfo:
         return datasets.DatasetInfo(
@@ -126,10 +132,10 @@ class Noxi(datasets.GeneratorBasedBuilder):
             dialog = extract_dialog(session, session_dir)
             vad = extract_vad_list(dialog)
             audio_path = join(session, sess_2_rel_audio_path[session])
-            expert_audio_path = audio_path.replace("audio_mix","audio_expert")
-            novice_audio_path = audio_path.replace("audio_mix","audio_novice")
-            mutimodal_expert_path = audio_path.replace("audio_mix","non_varbal_expert")
-            mutimodal_novice_path = audio_path.replace("audio_mix","non_varbal_novice")
+            expert_audio_path = audio_path.replace("audio_mix", "audio_expert")
+            novice_audio_path = audio_path.replace("audio_mix", "audio_novice")
+            mutimodal_expert_path = audio_path.replace("audio_mix", "non_varbal_expert")
+            mutimodal_novice_path = audio_path.replace("audio_mix", "non_varbal_novice")
             # omit words
             # dialog = remove_words_from_dialog(dialog)
             yield f"{session}", {

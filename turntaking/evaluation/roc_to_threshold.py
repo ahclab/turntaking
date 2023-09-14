@@ -1,7 +1,6 @@
 from tqdm import tqdm
 from turntaking.utils import to_device
 import torch
-from pprint import pprint
 from turntaking.utils import everything_deterministic
 import pandas as pd
 
@@ -19,7 +18,7 @@ def get_curves(preds, target, pos_label=1, thresholds=None, EPS=1e-6):
         thresholds = torch.linspace(0, 1, steps=101)
 
     if pos_label == 0:
-        raise NotImplemented("Have not done this")
+        raise NotImplementedError("Have not done this")
 
     ba, f1 = [], []
     auc0, auc1 = [], []
@@ -86,7 +85,7 @@ def find_threshold(cfg_dict, model, dm, min_thresh=0.01):
     dm.change_frame_mode(True)
     """Find the best threshold using PR-curves"""
 
-    def get_best_thresh(curves, metric, measure, min_thresh):  
+    def get_best_thresh(curves, metric, measure, min_thresh):
         ts = curves[metric]["thresholds"]
         over = min_thresh <= ts
         under = ts <= (1 - min_thresh)
@@ -117,7 +116,7 @@ def find_threshold(cfg_dict, model, dm, min_thresh=0.01):
         enumerate(dm.val_dataloader()),
         total=len(dm.val_dataloader()),
         dynamic_ncols=True,
-        leave=False
+        leave=False,
     ):
         # batch = to_device(batch, model.device)
         # Forward Pass through the model
@@ -125,7 +124,7 @@ def find_threshold(cfg_dict, model, dm, min_thresh=0.01):
         val_loss += loss["total"]
         for o in out["logits_vp"]:
             probs.append(o)
-    
+
     val_loss /= len(dm.val_dataloader())
 
     probs = torch.cat(probs).unsqueeze(0).to(cfg_dict["train"]["device"])

@@ -5,7 +5,6 @@ import json
 import subprocess
 import pandas as pd
 from os.path import join
-from torch import nn
 
 import torch
 import torchaudio
@@ -14,6 +13,7 @@ from torchaudio.backend.sox_io_backend import info as info_sox
 
 from decimal import Decimal, ROUND_HALF_UP
 
+
 def repo_root():
     """
     Returns the absolute path to the git repository
@@ -21,6 +21,7 @@ def repo_root():
     root = dirname(__file__)
     root = dirname(root)
     return root
+
 
 NORM_JSON = join(repo_root(), "dataload/dataset/noxi/files/normalize.json")
 
@@ -38,15 +39,23 @@ def frames_to_time(f, hop_time):
 
 
 def time_to_frames(t, hop_time):
-    return int(Decimal(str(t / hop_time)).quantize(Decimal("0"),rounding=ROUND_HALF_UP)) # ugly code
+    return int(
+        Decimal(str(t / hop_time)).quantize(Decimal("0"), rounding=ROUND_HALF_UP)
+    )  # ugly code
 
 
 def time_to_frames_samples(t, sample_rate, hop_length):
-    return int(Decimal(str(t * sample_rate / hop_length)).quantize(Decimal("0"),rounding=ROUND_HALF_UP))
+    return int(
+        Decimal(str(t * sample_rate / hop_length)).quantize(
+            Decimal("0"), rounding=ROUND_HALF_UP
+        )
+    )
 
 
 def time_to_samples(t, sample_rate):
-    return int(Decimal(str(t * sample_rate)).quantize(Decimal("0"),rounding=ROUND_HALF_UP))
+    return int(
+        Decimal(str(t * sample_rate)).quantize(Decimal("0"), rounding=ROUND_HALF_UP)
+    )
 
 
 def get_audio_info(audio_path):
@@ -104,6 +113,7 @@ def load_waveform(
             sr = sample_rate
     return x, sr
 
+
 def load_multimodal_features(path, feature_name, normalize="batch_normalization"):
     df = pd.read_csv(path)
     feature_columns = []
@@ -111,13 +121,18 @@ def load_multimodal_features(path, feature_name, normalize="batch_normalization"
     if feature_name == "gaze":
         feature_columns = ["gaze_x", "gaze_y", "gaze_confidence"]
     elif feature_name == "au":
-        feature_columns = [f"AU{code:02d}" for code in [1, 2, 4, 5, 6, 7, 9, 10, 12, 14, 15, 17, 20, 23, 25, 26, 45]] + ["gaze_confidence"]
+        feature_columns = [
+            f"AU{code:02d}"
+            for code in [1, 2, 4, 5, 6, 7, 9, 10, 12, 14, 15, 17, 20, 23, 25, 26, 45]
+        ] + ["gaze_confidence"]
     elif feature_name == "pose":
-        feature_columns = [f"pose_{i}_{axis}" for i in range(1, 8) for axis in ["x", "y", "confidence"]]
+        feature_columns = [
+            f"pose_{i}_{axis}" for i in range(1, 8) for axis in ["x", "y", "confidence"]
+        ]
     elif feature_name == "head":
         feature_columns = ["head_x", "head_y", "head_z", "gaze_confidence"]
     else:
-        print(f"ERROR: load_multimodal_features()")
+        print("ERROR: load_multimodal_features()")
         exit(1)
 
     features = torch.tensor(df[feature_columns].to_numpy())
@@ -175,7 +190,7 @@ def load_multimodal_features(path, feature_name, normalize="batch_normalization"
 #         au = torch.stack([au_01,au_02,au_04,au_05,au_06,au_07,au_09,au_10,au_12,au_14,au_15,au_17,au_20,au_23,au_25,au_26,au_45,confidence]
 #                          ).view(18,-1
 #                                 ).permute(*torch.arange(torch.stack([au_01,au_02,au_04,au_05,au_06,au_07,au_09,au_10,au_12,au_14,au_15,au_17,au_20,au_23,au_25,au_26,au_45,confidence]).view(18,-1).ndim - 1, -1, -1))
-        
+
 #         if normalize == "batch_normalization":
 #             # batch_norm=nn.BatchNorm1d(3)
 #             # au = batch_norm(au.float())
@@ -392,5 +407,3 @@ def sph2pipe_to_wav(sph_file):
     wav_file = sph_file.replace(".sph", ".wav")
     subprocess.check_call(["sph2pipe", sph_file, wav_file])
     return wav_file
-
-

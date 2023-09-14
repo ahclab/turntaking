@@ -14,12 +14,11 @@
 
 from typing import Tuple
 
-import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch import Tensor
 
 from .encoder import SqueezeformerEncoder
+
 
 class Squeezeformer(nn.Module):
     """
@@ -89,7 +88,9 @@ class Squeezeformer(nn.Module):
         """Count parameters of encoder"""
         return self.encoder.count_parameters()
 
-    def forward(self, inputs: Tensor, input_lengths: Tensor = None) -> Tuple[Tensor, Tensor]:
+    def forward(
+        self, inputs: Tensor, input_lengths: Tensor = None
+    ) -> Tuple[Tensor, Tensor]:
         """
         Forward propagate a `inputs` and `targets` pair for training.
         Args:

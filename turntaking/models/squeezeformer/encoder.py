@@ -14,16 +14,11 @@
 
 from typing import Tuple
 
-import torch
 import torch.nn as nn
 from torch import Tensor
 
 from .attention import MultiHeadedSelfAttentionModule
 
-from turntaking.models.multi_head_attention import (
-    MultiHeadAttentionAlibi,
-    MultiHeadAttention,
-)
 from .convolution import ConvModule, DepthwiseConv2dSubsampling, TimeReductionLayer
 from .modules import FeedForwardModule, ResidualConnectionModule, recover_resolution
 
@@ -76,7 +71,9 @@ class SqueezeformerEncoder(nn.Module):
         self.num_layers = num_layers
         self.reduce_layer_index = reduce_layer_index
         self.recover_layer_index = recover_layer_index
-        self.conv_subsample = DepthwiseConv2dSubsampling(in_channels=1, out_channels=encoder_dim)
+        self.conv_subsample = DepthwiseConv2dSubsampling(
+            in_channels=1, out_channels=encoder_dim
+        )
         self.input_proj = nn.Sequential(
             nn.Linear(encoder_dim * (((input_dim - 1) // 2 - 1) // 2), encoder_dim),
             nn.Dropout(p=input_dropout_p),
@@ -137,7 +134,9 @@ class SqueezeformerEncoder(nn.Module):
         """Count parameters of encoder"""
         return sum([p.numel for p in self.parameters()])
 
-    def forward(self, inputs: Tensor, input_lengths: Tensor = None) -> Tuple[Tensor, Tensor]:
+    def forward(
+        self, inputs: Tensor, input_lengths: Tensor = None
+    ) -> Tuple[Tensor, Tensor]:
         """
         Forward propagate a `inputs` for  encoder training.
         Args:
@@ -156,7 +155,9 @@ class SqueezeformerEncoder(nn.Module):
         for idx, layer in enumerate(self.layers):
             if idx == self.reduce_layer_index:
                 self.recover_tensor = outputs
-                outputs, output_lengths = self.time_reduction_layer(outputs, output_lengths)
+                outputs, output_lengths = self.time_reduction_layer(
+                    outputs, output_lengths
+                )
                 outputs = self.time_reduction_proj(outputs)
 
             if idx == self.recover_layer_index:

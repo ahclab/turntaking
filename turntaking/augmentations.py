@@ -1,6 +1,5 @@
 import torch
 import torchaudio.functional as AF
-import torchaudio.transforms as AT
 import einops
 import numpy as np
 from typing import Union, Optional
@@ -546,17 +545,14 @@ def _filter_test():
 
 
 def _intensity_test():
-
     import matplotlib.pyplot as plt
     import sounddevice as sd
 
     SAMPLE = "assets/audio/her.wav"
-    tts_sample = "assets/phrases_beta/audio/basketball_long_female_en-US-Wavenet-C.wav"
 
     # From torch/numpy array (Faster, especially with downsample)
     # Load waveform
     sample_rate = 16000
-    hop_time = 0.01
     y, _ = load_waveform(
         path=SAMPLE,
         sample_rate=sample_rate,

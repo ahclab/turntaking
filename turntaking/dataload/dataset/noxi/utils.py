@@ -10,6 +10,7 @@ OmitText = [
     "[vocalized-noise]",
 ]
 
+
 # Only used once, json file is included in repo
 def extract_audio_mapping(audio_root):
     map = {}
@@ -162,12 +163,18 @@ def extract_dialog(session, session_dir, apply_regexp=True):
 
     # Speaker A: original name in annotations
     a_utterances = combine_speaker_utterance_and_words(
-        session, speaker="expert", session_dir=session_dir, apply_regexp=apply_regexp,
+        session,
+        speaker="expert",
+        session_dir=session_dir,
+        apply_regexp=apply_regexp,
     )
 
     # Speaker B: original name in annotations
     b_utterances = combine_speaker_utterance_and_words(
-        session, speaker="novice", session_dir=session_dir, apply_regexp=apply_regexp,
+        session,
+        speaker="novice",
+        session_dir=session_dir,
+        apply_regexp=apply_regexp,
     )
     return [a_utterances, b_utterances]
 
@@ -177,15 +184,17 @@ def remove_words_from_dialog(dialog):
     for channel in [0, 1]:
         for utt in dialog[channel]:
             new_dialog[channel].append(
-                {"text": utt["text"], "start": utt["start"], "end": utt["end"],}
+                {
+                    "text": utt["text"],
+                    "start": utt["start"],
+                    "end": utt["end"],
+                }
             )
     return new_dialog
 
 
 if __name__ == "__main__":
-
     from os import listdir
-    from turntaking.dataload.utils import read_json
 
     extracted_path = "/ahc/work2/kazuyo-oni/projects/data/noxi"
     session = "Paris_01"

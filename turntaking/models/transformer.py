@@ -1,7 +1,7 @@
 from pprint import pprint
 import torch
 import torch.nn as nn
-import math, time
+import math
 
 from typing import Optional, Tuple
 
@@ -59,7 +59,7 @@ class TransformerLayer(nn.Module):
         ffn_activation: str = "GELU",
         dropout: float = 0.1,
         position_emb: bool = False,
-        use_pre_ln: bool = True, #True -> PreLayerNorm, Flase -> PostLayerNorm
+        use_pre_ln: bool = True,  # True -> PreLayerNorm, Flase -> PostLayerNorm
     ):
         super().__init__()
         self.ln_multihead = nn.LayerNorm(dim)
@@ -86,7 +86,7 @@ class TransformerLayer(nn.Module):
         h = self.ln_multihead(x + h)
         h = self.ln_ffnetwork(h + self.ffnetwork(h))
         return h, attn
-    
+
     def pre_layer_norm(
         self, x: torch.Tensor, mask: Optional[torch.Tensor] = None
     ) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -124,7 +124,7 @@ class Transformer(nn.Module):
         dropout: float = 0.1,
         use_pos_emb: bool = False,  # False -> Alibi
         max_context: int = 1024,
-        use_pre_ln: bool = True
+        use_pre_ln: bool = True,
     ):
         super().__init__()
         self.dim = input_size
@@ -153,7 +153,7 @@ class Transformer(nn.Module):
                     ffn_activation=self.activation,
                     dropout=self.dropout,
                     position_emb=self.use_pos_emb,
-                    use_pre_ln = self.use_pre_ln
+                    use_pre_ln=self.use_pre_ln,
                 )
             )
         self.layers = nn.ModuleList(layers)
@@ -179,20 +179,19 @@ class Transformer(nn.Module):
         x = self.pos_emb(x)
         x_buf = x
         for i, layer in enumerate(self.layers):
-            if (type(layer) == nn.Identity): 
+            if type(layer) == nn.Identity:
                 x = layer(x)
             else:
                 x, attn = layer(x)
 
             if self.resnet:
-                if (i+1) % 2 == 0:
+                if (i + 1) % 2 == 0:
                     x = x + x_buf
             else:
                 pass
 
             if attention:
                 all_attention.append(attn)
-            
 
         if attention:
             attn = torch.stack(all_attention, dim=1)
@@ -234,20 +233,22 @@ def _test_transformer():
     ax[0, 0].set_yticks([])
     plt.tight_layout()
     plt.savefig("model.png")
-    #plt.show()
+    # plt.show()
+
 
 def _test():
     from torchinfo import summary
+
     model = Transformer(input_size=256, dff_k=3, num_layers=1, num_heads=4)
     x = torch.rand((256, 250, model.dim))
-    summary( 
-            model=model,
-            input_data=x,
-            depth=10,
-            row_settings=["var_names"],
-            col_names=["input_size", "output_size", "num_params", "mult_adds"],
+    summary(
+        model=model,
+        input_data=x,
+        depth=10,
+        row_settings=["var_names"],
+        col_names=["input_size", "output_size", "num_params", "mult_adds"],
     )
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     _test()
