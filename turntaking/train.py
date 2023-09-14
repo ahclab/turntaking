@@ -130,6 +130,8 @@ class Train():
 
         val_loss = 0
         for ii, batch in pbar_val:
+            if ii == 1000:
+                break 
             with torch.no_grad():
                 loss, _, _ = self.model.shared_step(batch)
                 val_loss += loss["total"]
@@ -182,7 +184,7 @@ def main(cfg: DictConfig) -> None:
         if i == 0:
             train = Train(cfg_dict, dm, output_path)
         else:
-            train = Train(cfg_dict, dm, output_path, False)
+            train = Train(cfg_dict, dm, output_path, cfg_dict["train"]["verbose"])
         model = train.train()
 
         ### Test ###

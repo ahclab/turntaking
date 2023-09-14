@@ -23,13 +23,12 @@ import math
 
 import resource
 rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
-resource.setrlimit(resource.RLIMIT_NOFILE, (4096, rlimit[1]))
+resource.setrlimit(resource.RLIMIT_NOFILE, (16384, rlimit[1]))
 
 class DialogAudioDataset(Dataset):
     def __init__(
         self,
         dataset,
-        data=None,
         feature_extractor=None,
         type="sliding",
         # AUDIO #################################
@@ -124,10 +123,7 @@ class DialogAudioDataset(Dataset):
         self.emb = ActivityEmb(self.bin_times, self.vad_hz)
         self.vap_label = VAPLabel(self.bin_times, self.vad_hz, self.threshold_ratio)
 
-        if data is not None:
-            self.data = data
-        else:
-            self._get_all()
+        self._get_all()
 
         (
             self.map_to_dset_idx,
@@ -659,7 +655,7 @@ class DialogAudioDataset(Dataset):
 
 def events_plot(batch, key=None, value=None, sample_rate=16000):
     import matplotlib.pyplot as plt
-    from conv_ssl.augmentations import torch_to_praat_sound
+    from turntaking.augmentations import torch_to_praat_sound
     import numpy as np
 
     vad_expert = batch["vad"][0][:, :, 0].squeeze()

@@ -18,15 +18,13 @@ train:
   learning_rate: 3.63e-4
 
 data:
-  datasets: ["noxi"]
-  tensor_path: null
+  datasets: "noxi"
   type: "sliding"
   sample_rate: ${model.encoder.sample_rate}
   audio_mono: true
   audio_duration: 1
   audio_normalize: false # If pre-processing is done beforehand, false is fine.
   audio_overlap: 0.5
-  audio_per_user: true
   # VAD
   vad_hz: ${model.encoder.frame_hz}
   vad_horizon: 2
@@ -45,7 +43,7 @@ data:
   bin_times: ${model.vap.bin_times}
   pre_frames: ${model.vap.pre_frames}
   threshold_ratio: ${model.vap.bin_threshold}
-  undersampling: false
+  undersampling: true
 
 hydra:
   run:

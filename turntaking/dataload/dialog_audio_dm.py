@@ -29,27 +29,26 @@ def get_dialog_audio_datasets(
     a single dataset.
     """
     dsets = []
-    for d in datasets:
-        if d == "switchboard":
-            dsets.append(
-                load_switchboard(
-                    split=split,
-                    train_files=train_files,
-                    val_files=val_files,
-                    test_files=test_files,
-                )
+    if datasets == "switchboard":
+        dsets.append(
+            load_switchboard(
+                split=split,
+                train_files=train_files,
+                val_files=val_files,
+                test_files=test_files,
             )
-        elif d == "noxi":
-            dsets.append(
-                load_noxi(
-                    split=split,
-                    train_files=train_files,
-                    val_files=val_files,
-                    test_files=test_files,
-                )
+        )
+    elif datasets == "noxi":
+        dsets.append(
+            load_noxi(
+                split=split,
+                train_files=train_files,
+                val_files=val_files,
+                test_files=test_files,
             )
-        else:
-            raise NotImplementedError(f"{d} is not yet implemented")
+        )
+    else:
+        raise NotImplementedError(f"{d} is not yet implemented")
     dsets = concatenate_datasets(dsets)
     return dsets
 
@@ -61,7 +60,6 @@ class DialogAudioDM(pl.LightningDataModule):
     def __init__(
         self,
         datasets,
-        tensor_path=None,
         type="sliding",  # ipu
         audio_mono=True,
         audio_duration=10,
@@ -72,7 +70,6 @@ class DialogAudioDM(pl.LightningDataModule):
         ipu_min_time=1,
         ipu_pause_time=0.2,
         sample_rate=16000,
-        audio_per_user=False,
         vad=True,
         vad_hz=100,
         vad_horizon=2,
@@ -98,22 +95,15 @@ class DialogAudioDM(pl.LightningDataModule):
         self.type = type
         self.transforms = transforms
 
-        if tensor_path is not None:
-            self.data_train = np.load(tensor_path["train"], allow_pickle=True).item()
-            self.data_val = np.load(tensor_path["val"], allow_pickle=True).item()
-            self.data_test = np.load(tensor_path["test"], allow_pickle=True).item()
-        else:
-            self.data_train = None
-            self.data_val = None
-            self.data_test = None
-
         # IterableDataset
         # Audio (waveforms)
         self.audio_mono = audio_mono
         self.audio_duration = audio_duration
         self.sample_rate = sample_rate
-        self.audio_per_user = audio_per_user
-
+        if datasets == "noxi":
+            self.audio_per_user = True
+        elif datasets == "switchboard":
+            self.audio_per_user = False
         # Sliding Window Dataset
         self.audio_overlap = audio_overlap
         self.audio_normalize = audio_normalize
@@ -177,25 +167,21 @@ class DialogAudioDM(pl.LightningDataModule):
         # Only flip during training...
         if split == "train":
             flip = self.flip_channels
-            data = self.data_train
         elif split == "val":
             flip = False
-            data = self.data_val
         elif split == "test":
             flip = False
-            data = self.data_test
         else:
             print("SPLIT ERROR")
             exit(1)
 
-        if self.datasets != ["noxi"]:
+        if self.datasets != "noxi":
             self.multimodal = False
 
         # pprint(self.datasets)
         # pprint(dset)
         return DialogAudioDataset(
             dataset=dset,
-            data=data,
             transforms=self.transforms,
             feature_extractor=None,
             type=self.type,
@@ -463,10 +449,9 @@ if __name__ == "__main__":
     data_conf = DialogAudioDM.load_config()
 
     dm = DialogAudioDM(
-        datasets=["noxi"],
+        datasets="noxi",
         audio_duration=10,
         audio_overlap=9.5,
-        audio_per_user=False,
         vad_hz=25,
         num_workers=0,
         multimodal=False,
