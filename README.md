@@ -21,6 +21,7 @@ Model training for
 ## Set Up Datasets
 * **WARNING:** Requires [NoXi Database](https://multimediate-challenge.org/datasets/Dataset_NoXi/) data.
 * Place the file in any directory as follows
+```
   .
   ├──noxi
   │  ├── Augsburg_01
@@ -40,6 +41,7 @@ Model training for
   │  │   ├── vad_expert.txt
   │  │   └── vad_novice.txt
     ...
+```
 
 * Rewrite `EXTRACTED_PATH` in `turntaking/dataload/dataset/noxi/noxi.py` and Rewrite `AUDIO_DIR` and `MULTIMODAL_DIR` in `/turntaking/dataload/dataset/noxi/__init__.py`.
 
