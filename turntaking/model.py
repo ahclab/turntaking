@@ -210,7 +210,7 @@ class NonVerbalCondition(nn.Module):
                 if self.conf["user1_input"] and self.conf["user2_input"]:
                     user1 = kwargs[f"{flag}_user1"]
                     user2 = kwargs[f"{flag}_user2"]
-                    bn = getattr(self, f"{flag}_ln")
+                    ln = getattr(self, f"{flag}_ln")
                     module1 = getattr(self, f"{flag}_module_user1")
                     module2 = getattr(self, f"{flag}_module_user2")
                     z_1 = self.get_module_output(module1, user1)
