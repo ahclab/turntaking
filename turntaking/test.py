@@ -18,7 +18,7 @@ from turntaking.utils import (
     write_json,
 )
 from turntaking.dataload import DialogAudioDM
-from turntaking.evaluation import roc_to_threshold, events_plot
+from turntaking.evaluation import roc_to_threshold, events_plot, compute_classification_metrics, compute_regression_metrics, compute_comparative_metrics
 import warnings
 
 everything_deterministic()
@@ -75,6 +75,7 @@ class Test:
     def test(self):
         test_loss = 0
         probs = []
+        labels = []
         for ii, batch in tqdm(
             enumerate(self.dm.test_dataloader()),
             total=len(self.dm.test_dataloader()),
@@ -86,8 +87,17 @@ class Test:
             test_loss += loss["total"]
             for o in out["logits_vp"]:
                 probs.append(o)
+            labels.append(out["va_labels"])
 
         probs = torch.cat(probs).unsqueeze(0).to(self.conf["train"]["device"])
+        labels = torch.cat(labels).unsqueeze(0).to(self.conf["train"]["device"])
+
+        if self.conf["model"]["vap"]["type"] == "discrete":
+            metrics = compute_classification_metrics(probs, labels)
+        elif self.conf["model"]["vap"]["type"] == "independent":
+            metrics = compute_regression_metrics(probs, labels)
+        else:
+            metrics = compute_comparative_metrics(probs, labels)
 
         d = to_device(self.dm.get_full_sample("test"), self.conf["train"]["device"])
         events = self.model.test_metric.extract_events(va=d["vad"])
@@ -113,6 +123,7 @@ class Test:
             "hold_precision": events_score["hold"]["precision"].item(),
             "hold_recall": events_score["hold"]["recall"].item(),
         }
+        result |= metrics
         print("-" * 60)
         print("### Test ###")
         print("-" * 60)

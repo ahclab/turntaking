@@ -102,7 +102,7 @@ class VAPHead(nn.Module):
             self.total_bins = 2 * len(conf["bin_times"])
             if self.type == "independent":
                 self.projection_head = nn.Sequential(
-                    nn.Linear(conf["dim"], self.total_bins),
+                    nn.Linear(conf["d_dim"], self.total_bins),
                     Rearrange("... (c f) -> ... c f", c=2, f=self.total_bins // 2),
                 )
                 self.output_dim = (2, conf["bin_times"])

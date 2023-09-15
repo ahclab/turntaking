@@ -25,8 +25,8 @@ data:
   audio_duration: 1
   audio_normalize: false # If pre-processing is done beforehand, false is fine.
   audio_overlap: 0.5
-  undersampling: true
-  oversampling: true
+  undersampling: false #discrete mode only
+  oversampling: true #discrete mode only
   # VAD
   vad_hz: ${model.encoder.frame_hz}
   vad_horizon: 2

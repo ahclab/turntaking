@@ -144,7 +144,7 @@ class DialogAudioDataset(Dataset):
             label = self.data["label"][dset_idx][
                 0, int(vad_idx + self.vad_hz * self.audio_duration) - 1
             ].item()
-            if not ((label == 15) and (torch.rand(1) > 0.5)):
+            if not ((label == 15) and (torch.rand(1) > 0.8)):
                 new_map_to_dset_idx.append(dset_idx)
                 new_map_to_vad_idx.append(vad_idx)
                 new_map_to_audio_idx.append(audio_idx)
@@ -216,11 +216,11 @@ class DialogAudioDataset(Dataset):
             map_to_audio_idx.extend(map_to_start_audio)
             map_to_dset_idx.extend([i] * len(map_to_start_vad))
 
-        if self.undersampling and not frame_mode:
+        if self.undersampling and not frame_mode and self.type=="discrete":
             map_to_dset_idx, map_to_vad_idx, map_to_audio_idx = self._undersampling(
                 map_to_dset_idx, map_to_vad_idx, map_to_audio_idx
             )
-        if self.oversampling and not frame_mode:
+        if self.oversampling and not frame_mode and self.type=="discrete":
             map_to_dset_idx, map_to_vad_idx, map_to_audio_idx = self._oversampling(
                 map_to_dset_idx, map_to_vad_idx, map_to_audio_idx
             )
@@ -338,7 +338,7 @@ class DialogAudioDataset(Dataset):
             return vap_bins
         else:
             return self.emb(vap_bins)  # discrete
-
+    
     def _adjust_waveform_size(self, waveform, all_vad_frames_num):
         audio_frame_num = int(self.sample_rate * all_vad_frames_num / self.vad_hz) - waveform.size(-1)
         if audio_frame_num < 0:
@@ -368,6 +368,7 @@ class DialogAudioDataset(Dataset):
         vad, vad_history = self._load_vad(b)
         lookahead = torch.zeros((1, self.vad_horizon, 2))
         label = self._extract_label(torch.cat((vad, lookahead), -2))
+
         gaze_expert, au_expert, pose_expert, head_expert, gaze_novice, au_novice, pose_novice, head_novice = self._load_multimodal(b)
 
         # Shape the audio waveform and multimodal data
@@ -421,6 +422,7 @@ class DialogAudioDataset(Dataset):
             "waveform_novice": [],
             "vad": [],
             "label": [],
+            "discrete_label": [],
             "vad_history": [],
             "gaze_expert": [],
             "au_expert": [],
@@ -431,6 +433,8 @@ class DialogAudioDataset(Dataset):
             "pose_novice": [],
             "head_novice": [],
         }
+
+        self.discrete_label = None
 
         with concurrent.futures.ProcessPoolExecutor() as executor:
             results = list(tqdm(executor.map(self._process_data, [self.dataset[i] for i in range(len(self.dataset["audio_path"]))]), total=len(self.dataset["audio_path"])))
