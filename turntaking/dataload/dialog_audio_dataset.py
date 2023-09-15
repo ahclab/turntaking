@@ -144,7 +144,7 @@ class DialogAudioDataset(Dataset):
             label = self.data["label"][dset_idx][
                 0, int(vad_idx + self.vad_hz * self.audio_duration) - 1
             ].item()
-            if label == 15 and torch.rand(1) < 0.5:
+            if not ((label == 15) and (torch.rand(1) > 0.5)):
                 new_map_to_dset_idx.append(dset_idx)
                 new_map_to_vad_idx.append(vad_idx)
                 new_map_to_audio_idx.append(audio_idx)
