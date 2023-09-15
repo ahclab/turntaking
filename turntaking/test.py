@@ -64,6 +64,7 @@ class Test:
                 print(pd.DataFrame([self.thresholds]))
                 print("-" * 60)
             self.model.test_metric = self.model.init_metric(
+                threshold_shift_hold=self.thresholds.get("shift_hold", 0.5),
                 threshold_pred_shift=self.thresholds.get("pred_shift", 0.3),
                 threshold_short_long=self.thresholds.get("short_long", 0.5),
                 threshold_bc_pred=self.thresholds.get("pred_bc", 0.1),
@@ -137,6 +138,7 @@ class Test:
         print(pd.DataFrame([thresholds]))
         print("-" * 60)
         self.model.test_metric = self.model.init_metric(
+            threshold_shift_hold=thresholds.get("shift_hold", 0.5),
             threshold_pred_shift=thresholds.get("pred_shift", 0.3),
             threshold_short_long=thresholds.get("short_long", 0.5),
             threshold_bc_pred=thresholds.get("pred_bc", 0.1),

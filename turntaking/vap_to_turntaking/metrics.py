@@ -11,9 +11,11 @@ class F1_Hold_Shift(Metric):
     # batch states are independent and we will optimize the runtime of 'forward'
     full_state_update: bool = False
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, threshold=0.5, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.stat_scores = StatScores(threshold=0.5, reduce="macro", multiclass=True, num_classes=2)
+        self.stat_scores = StatScores(threshold=threshold, reduce="macro", multiclass=True, num_classes=2)
+        self.probs = None
+        self.labels = None
 
     def probs_shift_hold(self, p, shift, hold):
         probs, labels = [], []
@@ -58,9 +60,9 @@ class F1_Hold_Shift(Metric):
         self.stat_scores.reset()
 
     def update(self, p, hold, shift):
-        probs, labels = self.probs_shift_hold(p, shift=shift, hold=hold)
-        if probs is not None:
-           self.stat_scores.update(probs, labels)
+        self.probs, self.labels = self.probs_shift_hold(p, shift=shift, hold=hold)
+        if self.probs is not None:
+           self.stat_scores.update(self.probs, self.labels)
 
     def compute(self):
         hold, shift = self.stat_scores.compute()
@@ -113,9 +115,11 @@ class TurnTakingMetrics(Metric):
         hs_kwargs,
         bc_kwargs,
         metric_kwargs,
+        threshold_shift_hold=0.5,
         threshold_pred_shift=0.5,
         threshold_short_long=0.5,
         threshold_bc_pred=0.5,
+        shift_hold_pr_curve=False,
         bc_pred_pr_curve=False,
         shift_pred_pr_curve=False,
         long_short_pr_curve=False,
@@ -129,7 +133,7 @@ class TurnTakingMetrics(Metric):
 
         # Metrics
         # self.f1: class to provide f1-weighted as well as other stats tp,fp,support, etc...
-        self.hs = F1_Hold_Shift()
+        self.hs = F1_Hold_Shift(threshold=threshold_shift_hold)
         self.predict_shift = F1Score(
             threshold=threshold_pred_shift,
             num_classes=2,
@@ -149,12 +153,16 @@ class TurnTakingMetrics(Metric):
             average="weighted",
         )
 
+        self.pr_curve_shift_hold = shift_hold_pr_curve
+        if self.pr_curve_shift_hold:
+            self.shift_hold_pr = PrecisionRecallCurve(pos_label=1)
+
         self.pr_curve_bc_pred = bc_pred_pr_curve
         if self.pr_curve_bc_pred:
             self.bc_pred_pr = PrecisionRecallCurve(pos_label=1)
-            print("::::::::::::::::::::::::::::::::::::::")
-            print(self.bc_pred_pr)
-            print("::::::::::::::::::::::::::::::::::::::")
+            # print("::::::::::::::::::::::::::::::::::::::")
+            # print(self.bc_pred_pr)
+            # print("::::::::::::::::::::::::::::::::::::::")
 
         self.pr_curve_shift_pred = shift_pred_pr_curve
         if self.pr_curve_shift_pred:
@@ -180,6 +188,12 @@ class TurnTakingMetrics(Metric):
         s = "TurnTakingMetrics"
         s += self.eventer.__repr__()
         return s
+    
+    def update_shift_hold(self, p, shift, hold):
+        self.hs.update(p, hold=hold, shift=shift)
+
+        if self.pr_curve_shift_hold:
+            self.shift_hold_pr.update(self.hs.probs, self.hs.labels)
 
     def update_short_long(self, p, short, long):
         """
@@ -317,6 +331,9 @@ class TurnTakingMetrics(Metric):
         self.predict_shift.reset()
         self.short_long.reset()
         self.predict_backchannel.reset()
+        if self.pr_curve_shift_hold:
+            self.shift_hold_pr.reset()
+
         if self.pr_curve_bc_pred:
             self.bc_pred_pr.reset()
 
@@ -353,7 +370,10 @@ class TurnTakingMetrics(Metric):
             events = self.extract_events(va)
 
         # SHIFT/HOLD
-        self.hs.update(p, hold=events["hold"], shift=events["shift"])
+        # self.hs.update(p, hold=events["hold"], shift=events["shift"])
+        self.update_shift_hold(
+            p, hold=events["hold"], shift=events["shift"]
+        )
 
         # Predict Shifts
         self.update_predict_shift(
@@ -392,6 +412,9 @@ class TurnTakingMetrics(Metric):
             ret["f1_bc_prediction"] = self.predict_backchannel.compute()
         except:
             ret["f1_bc_prediction"] = -1
+
+        if self.pr_curve_shift_hold:
+            ret["pr_curve_shift_hold"] = self.shift_hold_pr.compute()
 
         if self.pr_curve_bc_pred:
             ret["pr_curve_bc_pred"] = self.bc_pred_pr.compute()

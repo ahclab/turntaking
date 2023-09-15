@@ -24,7 +24,8 @@ BC:
   metric_dur_frames: ${events.metric.onset_dur}
   metric_pre_label_dur: ${events.metric.pre_label_dur}
 
-threshold: #閾値
+threshold:
+  SH: 0.5
   SL: 0.5
   S_pred: 0.3
   BC_pred: 0.1

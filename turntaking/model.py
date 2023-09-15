@@ -440,15 +440,20 @@ class Model(pl.LightningModule):
     def init_metric(
         self,
         conf=None,
+        threshold_shift_hold=None,
         threshold_pred_shift=None,
         threshold_short_long=None,
         threshold_bc_pred=None,
+        shift_hold_pr_curve=False,
         bc_pred_pr_curve=False,
         shift_pred_pr_curve=False,
         long_short_pr_curve=False,
     ):
         if conf is None:
             conf = self.conf
+
+        if threshold_pred_shift is None:
+            threshold_shift_hold = conf["events"]["threshold"]["SH"]
 
         if threshold_pred_shift is None:
             threshold_pred_shift = conf["events"]["threshold"]["S_pred"]
@@ -463,9 +468,11 @@ class Model(pl.LightningModule):
             hs_kwargs=conf["events"]["SH"],
             bc_kwargs=conf["events"]["BC"],
             metric_kwargs=conf["events"]["metric"],
+            threshold_shift_hold=threshold_shift_hold,
             threshold_pred_shift=threshold_pred_shift,
             threshold_short_long=threshold_short_long,
             threshold_bc_pred=threshold_bc_pred,
+            shift_hold_pr_curve=shift_hold_pr_curve,
             shift_pred_pr_curve=shift_pred_pr_curve,
             bc_pred_pr_curve=bc_pred_pr_curve,
             long_short_pr_curve=long_short_pr_curve,
