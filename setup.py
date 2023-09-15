@@ -14,5 +14,6 @@ setup(
         "turntaking.models",
         "turntaking.evaluation",
         "turntaking.dataload",
+        "turntaking.vap_to_turn_taking",
     ],
 )

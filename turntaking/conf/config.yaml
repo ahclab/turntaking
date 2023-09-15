@@ -25,6 +25,8 @@ data:
   audio_duration: 1
   audio_normalize: false # If pre-processing is done beforehand, false is fine.
   audio_overlap: 0.5
+  undersampling: false
+  oversampling: true
   # VAD
   vad_hz: ${model.encoder.frame_hz}
   vad_horizon: 2
@@ -41,7 +43,6 @@ data:
   bin_times: ${model.vap.bin_times}
   pre_frames: ${model.vap.pre_frames}
   threshold_ratio: ${model.vap.bin_threshold}
-  undersampling: true
 
 hydra:
   run:

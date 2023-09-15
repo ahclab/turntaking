@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import time
 import torch.nn.functional as F
 import pytorch_lightning as pl
 from omegaconf import OmegaConf
@@ -421,8 +422,6 @@ class Model(pl.LightningModule):
         inputs = to_device(inputs, self.conf["train"]["device"])
 
         execution_times = []
-
-        import time
 
         for _ in range(1000):
             time_start = time.perf_counter()

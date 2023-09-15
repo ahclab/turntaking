@@ -56,7 +56,8 @@ class DialogAudioDataset(Dataset):
         bin_times=[0.20, 0.40, 0.60, 0.80],
         pre_frames=2,
         threshold_ratio=0.5,
-        undersampling=True,
+        undersampling=False,
+        oversampling=False,
     ):
         super().__init__()
         self.dataset = dataset  # Hugginface datasets
@@ -107,6 +108,7 @@ class DialogAudioDataset(Dataset):
         self.pre_frames = pre_frames
         self.type = label_type
         self.undersampling = undersampling
+        self.oversampling = oversampling
         self.emb = ActivityEmb(self.bin_times, self.vad_hz)
         self.vap_label = VAPLabel(self.bin_times, self.vad_hz, self.threshold_ratio)
 
@@ -142,12 +144,49 @@ class DialogAudioDataset(Dataset):
             label = self.data["label"][dset_idx][
                 0, int(vad_idx + self.vad_hz * self.audio_duration) - 1
             ].item()
-            if not ((label == 15) and (torch.rand(1) > 0.2)):
+            if label == 15 and torch.rand(1) < 0.5:
                 new_map_to_dset_idx.append(dset_idx)
                 new_map_to_vad_idx.append(vad_idx)
                 new_map_to_audio_idx.append(audio_idx)
 
         return new_map_to_dset_idx, new_map_to_vad_idx, new_map_to_audio_idx
+
+    def _oversampling(self, map_to_dset_idx, map_to_vad_idx, map_to_audio_idx):
+        new_map_to_dset_idx = []
+        new_map_to_vad_idx = []
+        new_map_to_audio_idx = []
+
+        frame = int(
+            Decimal(str(self.sample_rate * self.vad_hop_time)).quantize(Decimal("0"), rounding=ROUND_HALF_UP)
+        )
+
+        for idx, (dset_idx, vad_idx, audio_idx) in enumerate(zip(
+            map_to_dset_idx, map_to_vad_idx, map_to_audio_idx
+        )):
+            label = self.data["label"][dset_idx][
+                0, int(vad_idx + self.vad_hz * self.audio_duration) - 1
+            ].item()
+
+            is_first_element = idx == 0 or map_to_dset_idx[idx - 1] != dset_idx
+            is_last_element = idx < len(map_to_dset_idx) - 1 and map_to_dset_idx[idx + 1] != dset_idx
+
+            if is_first_element or is_last_element:
+                new_map_to_dset_idx.append(dset_idx)
+                new_map_to_vad_idx.append(vad_idx)
+                new_map_to_audio_idx.append(audio_idx)
+                continue
+
+            if label != 15 and torch.rand(1) < 0.8:
+                new_map_to_dset_idx.extend([dset_idx, dset_idx])
+                new_map_to_vad_idx.extend([vad_idx, vad_idx + 1]) #SMOTE: Add 1 frame after
+                new_map_to_audio_idx.extend([audio_idx, audio_idx + frame]) #SMOTE: Add 1 frame after
+            else:
+                new_map_to_dset_idx.append(dset_idx)
+                new_map_to_vad_idx.append(vad_idx)
+                new_map_to_audio_idx.append(audio_idx)
+        
+        return new_map_to_dset_idx, new_map_to_vad_idx, new_map_to_audio_idx
+
 
     def _get_sliding_window_indices(self, frame_mode=False):
         map_to_dset_idx = []
@@ -179,6 +218,10 @@ class DialogAudioDataset(Dataset):
 
         if self.undersampling and not frame_mode:
             map_to_dset_idx, map_to_vad_idx, map_to_audio_idx = self._undersampling(
+                map_to_dset_idx, map_to_vad_idx, map_to_audio_idx
+            )
+        if self.oversampling and not frame_mode:
+            map_to_dset_idx, map_to_vad_idx, map_to_audio_idx = self._oversampling(
                 map_to_dset_idx, map_to_vad_idx, map_to_audio_idx
             )
 

@@ -87,7 +87,8 @@ class DialogAudioDM(pl.LightningDataModule):
         bin_times=[0.20, 0.40, 0.60, 0.80],
         pre_frames=2,
         threshold_ratio=0.5,
-        undersampling=True,
+        undersampling=False,
+        oversampling=False,
     ):
         super().__init__()
         self.datasets = datasets  # names of datasets
@@ -133,6 +134,7 @@ class DialogAudioDM(pl.LightningDataModule):
         self.pre_frames = pre_frames
         self.threshold_ratio = threshold_ratio
         self.undersampling = undersampling
+        self.oversampling = oversampling
 
     def prepare_data(self):
         """
@@ -185,6 +187,7 @@ class DialogAudioDM(pl.LightningDataModule):
             pre_frames=self.pre_frames,
             threshold_ratio=self.threshold_ratio,
             undersampling=self.undersampling,
+            oversampling=self.oversampling
         )
 
     def setup(self, stage: Optional[str] = "fit"):
