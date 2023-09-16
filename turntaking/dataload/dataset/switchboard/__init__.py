@@ -71,6 +71,8 @@ def load_switchboard(
         examples["dataset_name"] = "switchboard"
         if audio_root is not None:
             examples["audio_path"] = join(audio_root, examples["audio_path"] + ext)
+            examples["user1_audio_path"] = join(audio_root, examples["user1_audio_path"] + ext)
+            examples["user2_audio_path"] = join(audio_root, examples["user2_audio_path"] + ext)
 
         return examples
 

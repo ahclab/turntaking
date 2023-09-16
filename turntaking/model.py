@@ -269,22 +269,22 @@ class Net(nn.Module):
             ac = self.audio_cond(
                 waveform=kwargs["waveform"],
                 va=kwargs["va"],
-                waveform_user1=kwargs.get("waveform_expert", None),
-                waveform_user2=kwargs.get("waveform_novice", None),
+                waveform_user1=kwargs.get("waveform_user1", None),
+                waveform_user2=kwargs.get("waveform_user2", None),
                 va_history=kwargs.get("va_history", None),
             )
             ac = ac[:, : kwargs["va"].shape[1]]
 
         if self.conf["non_verbal_cond"]["use_module"]:
             nc = self.non_verbal_cond(
-                gaze_user1=kwargs.get("gaze_expert", None),
-                au_user1=kwargs.get("au_expert", None),
-                head_user1=kwargs.get("head_expert", None),
-                pose_user1=kwargs.get("pose_expert", None),
-                gaze_user2=kwargs.get("gaze_novice", None),
-                au_user2=kwargs.get("au_novice", None),
-                head_user2=kwargs.get("head_novice", None),
-                pose_user2=kwargs.get("pose_novice", None),
+                gaze_user1=kwargs.get("gaze_user1", None),
+                au_user1=kwargs.get("au_user1", None),
+                head_user1=kwargs.get("head_user1", None),
+                pose_user1=kwargs.get("pose_user1", None),
+                gaze_user2=kwargs.get("gaze_user2", None),
+                au_user2=kwargs.get("au_user2", None),
+                head_user2=kwargs.get("head_user2", None),
+                pose_user2=kwargs.get("pose_user2", None),
             )
             nc = nc[:, : kwargs["va"].shape[1]]
 
@@ -375,21 +375,21 @@ class Model(pl.LightningModule):
         inputs = {
             "waveform": torch.randn(self.conf["data"]["batch_size"], frame_audio),
             "va": torch.randn(self.conf["data"]["batch_size"], frame_vad, 2),
-            "waveform_expert": torch.randn(
+            "waveform_user1": torch.randn(
                 self.conf["data"]["batch_size"], frame_audio
             ),
-            "waveform_novice": torch.randn(
+            "waveform_user2": torch.randn(
                 self.conf["data"]["batch_size"], frame_audio
             ),
             "va_history": torch.randn(self.conf["data"]["batch_size"], frame_vad, 5),
-            "gaze_expert": torch.randn(self.conf["data"]["batch_size"], frame_vad, 3),
-            "au_expert": torch.randn(self.conf["data"]["batch_size"], frame_vad, 18),
-            "pose_expert": torch.randn(self.conf["data"]["batch_size"], frame_vad, 21),
-            "head_expert": torch.randn(self.conf["data"]["batch_size"], frame_vad, 4),
-            "gaze_novice": torch.randn(self.conf["data"]["batch_size"], frame_vad, 3),
-            "au_novice": torch.randn(self.conf["data"]["batch_size"], frame_vad, 18),
-            "pose_novice": torch.randn(self.conf["data"]["batch_size"], frame_vad, 21),
-            "head_novice": torch.randn(self.conf["data"]["batch_size"], frame_vad, 4),
+            "gaze_user1": torch.randn(self.conf["data"]["batch_size"], frame_vad, 3),
+            "au_user1": torch.randn(self.conf["data"]["batch_size"], frame_vad, 18),
+            "pose_user1": torch.randn(self.conf["data"]["batch_size"], frame_vad, 21),
+            "head_user1": torch.randn(self.conf["data"]["batch_size"], frame_vad, 4),
+            "gaze_user2": torch.randn(self.conf["data"]["batch_size"], frame_vad, 3),
+            "au_user2": torch.randn(self.conf["data"]["batch_size"], frame_vad, 18),
+            "pose_user2": torch.randn(self.conf["data"]["batch_size"], frame_vad, 21),
+            "head_user2": torch.randn(self.conf["data"]["batch_size"], frame_vad, 4),
         }
         inputs = to_device(inputs, self.conf["train"]["device"])
 
@@ -407,17 +407,17 @@ class Model(pl.LightningModule):
         inputs = {
             "waveform": torch.randn(1, 160000),
             "va": torch.randn(1, 250, 2),
-            "waveform_expert": torch.randn(1, 160000),
-            "waveform_novice": torch.randn(1, 160000),
+            "waveform_user1": torch.randn(1, 160000),
+            "waveform_user2": torch.randn(1, 160000),
             "va_history": torch.randn(1, 250, 5),
-            "gaze_expert": torch.randn(1, 250, 3),
-            "au_expert": torch.randn(1, 250, 18),
-            "pose_expert": torch.randn(1, 250, 21),
-            "head_expert": torch.randn(1, 250, 4),
-            "gaze_novice": torch.randn(1, 250, 3),
-            "au_novice": torch.randn(1, 250, 18),
-            "pose_novice": torch.randn(1, 250, 21),
-            "head_novice": torch.randn(1, 250, 4),
+            "gaze_user1": torch.randn(1, 250, 3),
+            "au_user1": torch.randn(1, 250, 18),
+            "pose_user1": torch.randn(1, 250, 21),
+            "head_user1": torch.randn(1, 250, 4),
+            "gaze_user2": torch.randn(1, 250, 3),
+            "au_user2": torch.randn(1, 250, 18),
+            "pose_user2": torch.randn(1, 250, 21),
+            "head_user2": torch.randn(1, 250, 4),
         }
         inputs = to_device(inputs, self.conf["train"]["device"])
 
@@ -514,17 +514,17 @@ class Model(pl.LightningModule):
         out = self(
             waveform=batch["waveform"],
             va=batch["vad"],
-            waveform_expert=batch.get("waveform_expert", None),
-            waveform_novice=batch.get("waveform_novice", None),
+            waveform_user1=batch.get("waveform_user1", None),
+            waveform_user2=batch.get("waveform_user2", None),
             va_history=batch.get("vad_history", None),
-            gaze_expert=batch.get("gaze_expert", None),
-            au_expert=batch.get("au_expert", None),
-            head_expert=batch.get("head_expert", None),
-            pose_expert=batch.get("pose_expert", None),
-            gaze_novice=batch.get("gaze_novice", None),
-            au_novice=batch.get("au_novice", None),
-            head_novice=batch.get("head_novice", None),
-            pose_novice=batch.get("pose_novice", None),
+            gaze_user1=batch.get("gaze_user1", None),
+            au_user1=batch.get("au_user1", None),
+            head_user1=batch.get("head_user1", None),
+            pose_user1=batch.get("pose_user1", None),
+            gaze_user2=batch.get("gaze_user2", None),
+            au_user2=batch.get("au_user2", None),
+            head_user2=batch.get("head_user2", None),
+            pose_user2=batch.get("pose_user2", None),
         )
         out["va_labels"] = batch["label"]
 
@@ -550,17 +550,17 @@ class Model(pl.LightningModule):
         out = self(
             waveform=batch.get("waveform", None),
             va=batch.get("vad", None),
-            waveform_expert=batch.get("waveform_expert", None),
-            waveform_novice=batch.get("waveform_novice", None),
+            waveform_user1=batch.get("waveform_user1", None),
+            waveform_user2=batch.get("waveform_user2", None),
             va_history=batch.get("vad_history", None),
-            gaze_expert=batch.get("gaze_expert", None),
-            au_expert=batch.get("au_expert", None),
-            head_expert=batch.get("head_expert", None),
-            pose_expert=batch.get("pose_expert", None),
-            gaze_novice=batch.get("gaze_novice", None),
-            au_novice=batch.get("au_novice", None),
-            head_novice=batch.get("head_novice", None),
-            pose_novice=batch.get("pose_novice", None),
+            gaze_user1=batch.get("gaze_user1", None),
+            au_user1=batch.get("au_user1", None),
+            head_user1=batch.get("head_user1", None),
+            pose_user1=batch.get("pose_user1", None),
+            gaze_user2=batch.get("gaze_user2", None),
+            au_user2=batch.get("au_user2", None),
+            head_user2=batch.get("head_user2", None),
+            pose_user2=batch.get("pose_user2", None),
         )
         out = to_device(out, out_device)
         return out

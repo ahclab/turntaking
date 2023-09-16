@@ -32,7 +32,7 @@ TODO
 _CITATION = """
 @inproceedings{Godfrey92,
     author = {A. Cafaro, J. Wagner, T. Baur, S. Dermouche, M. Torres Torres, C. Pelachaud, E. André, and M. Valstar,},
-    title = {The NoXi database: multimodal recordings of mediated novice-expert interactions},
+    title = {The NoXi database: multimodal recordings of mediated user2-user1 interactions},
     year = {2017},
     isbn = {978-1-4503-5543-8},
     publisher = {Association for Computing Machinery},
@@ -49,10 +49,10 @@ _CITATION = """
 FEATURES = {
     "session": Value("string"),
     "audio_path": Value("string"),
-    "expert_audio_path": Value("string"),
-    "novice_audio_path": Value("string"),
-    "multimodal_expert_path": Value("string"),
-    "multimodal_novice_path": Value("string"),
+    "user1_audio_path": Value("string"),
+    "user2_audio_path": Value("string"),
+    "multimodal_user1_path": Value("string"),
+    "multimodal_user2_path": Value("string"),
     "vad": [
         [Sequence(Value("float"))],
     ],
@@ -132,19 +132,19 @@ class Noxi(datasets.GeneratorBasedBuilder):
             dialog = extract_dialog(session, session_dir)
             vad = extract_vad_list(dialog)
             audio_path = join(session, sess_2_rel_audio_path[session])
-            expert_audio_path = audio_path.replace("audio_mix", "audio_expert")
-            novice_audio_path = audio_path.replace("audio_mix", "audio_novice")
-            mutimodal_expert_path = audio_path.replace("audio_mix", "non_varbal_expert")
-            mutimodal_novice_path = audio_path.replace("audio_mix", "non_varbal_novice")
+            user1_audio_path = audio_path.replace("audio_mix", "audio_expert")
+            user2_audio_path = audio_path.replace("audio_mix", "audio_novice")
+            mutimodal_user1_path = audio_path.replace("audio_mix", "non_varbal_expert")
+            mutimodal_user2_path = audio_path.replace("audio_mix", "non_varbal_novice")
             # omit words
             # dialog = remove_words_from_dialog(dialog)
             yield f"{session}", {
                 "session": session,
                 "audio_path": audio_path,
-                "expert_audio_path": expert_audio_path,
-                "novice_audio_path": novice_audio_path,
-                "multimodal_expert_path": mutimodal_expert_path,
-                "multimodal_novice_path": mutimodal_novice_path,
+                "user1_audio_path": user1_audio_path,
+                "user2_audio_path": user2_audio_path,
+                "multimodal_user1_path": mutimodal_user1_path,
+                "multimodal_user2_path": mutimodal_user2_path,
                 "vad": vad,
             }
 

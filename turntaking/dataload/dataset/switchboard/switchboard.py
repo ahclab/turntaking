@@ -51,6 +51,8 @@ _CITATION = """
 FEATURES = {
     "session": Value("string"),
     "audio_path": Value("string"),
+    "user1_audio_path": Value("string"),
+    "user2_audio_path": Value("string"),
     "vad": [
         [Sequence(Value("float"))],
     ],
@@ -143,11 +145,15 @@ class Swithchboard(datasets.GeneratorBasedBuilder):
             dialog = extract_dialog(session, session_dir)
             vad = extract_vad_list_from_words(dialog, self.config.min_word_vad_diff)
             audio_path = sess_2_rel_path[session]
+            user1_audio_path = audio_path + "_user1"
+            user2_audio_path = audio_path + "_user2"
             # omit words
             dialog = remove_words_from_dialog(dialog)
             yield f"{session}", {
                 "session": session,
                 "audio_path": audio_path,
+                "user1_audio_path": user1_audio_path,
+                "user2_audio_path": user2_audio_path,
                 "vad": vad,
                 "dialog": dialog,
             }

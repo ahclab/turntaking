@@ -91,6 +91,7 @@ class Test:
 
         probs = torch.cat(probs).unsqueeze(0).to(self.conf["train"]["device"])
         labels = torch.cat(labels).unsqueeze(0).to(self.conf["train"]["device"])
+        torch.cuda.empty_cache()
 
         if self.conf["model"]["vap"]["type"] == "discrete":
             metrics = compute_classification_metrics(probs, labels)
@@ -175,7 +176,7 @@ class Test:
     def _extract_data(self, data, keys, start_idx, end_idx, waveform_scale_factor=640):
         extracted_data = {}
         for key in keys:
-            if key in {"waveform", "waveform_expert", "waveform_novice"}:
+            if key in {"waveform", "waveform_user1", "waveform_user2"}:
                 extracted_data[key] = data[key][
                     :,
                     start_idx * waveform_scale_factor : end_idx * waveform_scale_factor,
@@ -193,19 +194,19 @@ class Test:
         makedirs(join(dirname(self.model_path), "img"), exist_ok=True)
         data = to_device(self.dm.get_full_sample("test"), "cpu")
 
-        data_keys = ["waveform_expert", "waveform_novice", "vad"]
+        data_keys = ["waveform_user1", "waveform_user2", "vad"]
 
         if self.conf["data"]["multimodal"]:
             data_keys.extend(
                 [
-                    "gaze_expert",
-                    "au_expert",
-                    "head_expert",
-                    "pose_expert",
-                    "gaze_novice",
-                    "au_novice",
-                    "head_novice",
-                    "pose_novice",
+                    "gaze_user1",
+                    "au_user1",
+                    "head_user1",
+                    "pose_user1",
+                    "gaze_user2",
+                    "au_user2",
+                    "head_user2",
+                    "pose_user2",
                 ]
             )
 

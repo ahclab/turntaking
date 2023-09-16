@@ -70,18 +70,18 @@ def load_noxi(
             examples["audio_path"] = join(
                 audio_root, examples["audio_path"] + audio_ext
             )
-            examples["expert_audio_path"] = join(
-                audio_root, examples["expert_audio_path"] + audio_ext
+            examples["user1_audio_path"] = join(
+                audio_root, examples["user1_audio_path"] + audio_ext
             )
-            examples["novice_audio_path"] = join(
-                audio_root, examples["novice_audio_path"] + audio_ext
+            examples["user2_audio_path"] = join(
+                audio_root, examples["user2_audio_path"] + audio_ext
             )
         if multimodal_root is not None:
-            examples["multimodal_expert_path"] = join(
-                multimodal_root, examples["multimodal_expert_path"] + multimodal_ext
+            examples["multimodal_user1_path"] = join(
+                multimodal_root, examples["multimodal_user1_path"] + multimodal_ext
             )
-            examples["multimodal_novice_path"] = join(
-                multimodal_root, examples["multimodal_novice_path"] + multimodal_ext
+            examples["multimodal_user2_path"] = join(
+                multimodal_root, examples["multimodal_user2_path"] + multimodal_ext
             )
 
         return examples

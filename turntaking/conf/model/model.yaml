@@ -71,20 +71,20 @@ audio_cond:
   use_module: true
   encoder:
     <<: *Encoder
-    use_module: true
+    use_module: false
     module:
       use_module: false
       <<: *AudioModule
   encoder_separated_audio:
-    use_module: false
+    use_module: true
     user1_input: false
     user2_input: true
     <<: *Encoder
-    user_1: #expert
+    user_1: 
       module:
         use_module: true
         <<: *AudioModule
-    user_2: #novice
+    user_2: 
       module:
         use_module: true
         <<: *AudioModule

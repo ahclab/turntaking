@@ -18,12 +18,12 @@ train:
   learning_rate: 3.63e-4
 
 data:
-  datasets: "noxi"
+  datasets: "switchboard"
   type: "sliding"
   sample_rate: ${model.encoder.sample_rate}
   audio_mono: true
   audio_duration: 1
-  audio_normalize: false # If pre-processing is done beforehand, false is fine.
+  audio_normalize: true # If pre-processing is done beforehand, false is fine.
   audio_overlap: 0.5
   undersampling: false #discrete mode only
   oversampling: true #discrete mode only

@@ -15,17 +15,17 @@ def compute_confusion_matrix(preds, labels):
     :param labels: True labels, shape: (batch_size)
     :return: Confusion matrix of shape (num_classes, num_classes)
     """
-    device = preds.device  # Get the device of the preds tensor (could be 'cpu', 'cuda:0', etc.)
+    preds = preds.to("cpu")  # Get the device of the preds tensor (could be 'cpu', 'cuda:0', etc.)
     num_classes = preds.size(-1)
     
     # Get the predicted classes
     _, predicted_classes = preds.max(dim=-1)
     
     # Ensure labels are on the same device as preds
-    labels = labels.to(device)
+    labels = labels.to("cpu")
     
     # Initialize confusion matrix on the same device
-    confusion_matrix = torch.zeros(num_classes, num_classes, dtype=torch.int64, device=device)
+    confusion_matrix = torch.zeros(num_classes, num_classes, dtype=torch.int64, device="cpu")
     
     # Populate confusion matrix
     for t, p in zip(labels, predicted_classes):
@@ -37,6 +37,8 @@ def compute_classification_metrics(preds, labels, top_k=5):
     """
     Compute accuracy, precision, recall, f1-score, top-k accuracy, multi-class AUC, and micro/macro-averaged metrics.
     """
+    preds = preds.to("cpu")
+    labels = labels.to("cpu")
     num_classes = preds.size(-1)
     _, predicted_classes = preds.max(dim=-1)
     labels_squeezed = labels.squeeze(dim=-1)

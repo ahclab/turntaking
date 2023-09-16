@@ -265,22 +265,19 @@ class DialogAudioDataset(Dataset):
             normalize=self.audio_normalize,
             mono=self.audio_mono,
         )
-        if b["dataset_name"] == "noxi":
-            waveform_expert, _ = load_waveform(
-                b["expert_audio_path"],
-                sample_rate=self.sample_rate,
-                normalize=self.audio_normalize,
-                mono=self.audio_mono,
-            )
-            waveform_novice, _ = load_waveform(
-                b["novice_audio_path"],
-                sample_rate=self.sample_rate,
-                normalize=self.audio_normalize,
-                mono=self.audio_mono,
-            )
-        else:
-            waveform_expert, waveform_novice = None, None
-        return waveform, waveform_expert, waveform_novice
+        waveform_user1, _ = load_waveform(
+            b["user1_audio_path"],
+            sample_rate=self.sample_rate,
+            normalize=self.audio_normalize,
+            mono=self.audio_mono,
+        )
+        waveform_user2, _ = load_waveform(
+            b["user2_audio_path"],
+            sample_rate=self.sample_rate,
+            normalize=self.audio_normalize,
+            mono=self.audio_mono,
+        )
+        return waveform, waveform_user1, waveform_user2
 
     def _load_vad(self, b):
         vad = vad_list_to_onehot(
@@ -299,33 +296,33 @@ class DialogAudioDataset(Dataset):
 
     def _load_multimodal(self, b):
         if b["dataset_name"] == "noxi":
-            gaze_expert, au_expert, pose_expert, head_expert = load_multimodal_features(
-                b["multimodal_expert_path"]
+            gaze_user1, au_user1, pose_user1, head_user1 = load_multimodal_features(
+                b["multimodal_user1_path"]
                 )
-            gaze_novice, au_novice, pose_novice, head_novice = load_multimodal_features(
-                b["multimodal_novice_path"]
+            gaze_user2, au_user2, pose_user2, head_user2 = load_multimodal_features(
+                b["multimodal_user2_path"]
                 )
         else:
             (
-                gaze_expert,
-                au_expert,
-                pose_expert,
-                head_expert,
-                gaze_novice,
-                au_novice,
-                pose_novice,
-                head_novice,
+                gaze_user1,
+                au_user1,
+                pose_user1,
+                head_user1,
+                gaze_user2,
+                au_user2,
+                pose_user2,
+                head_user2,
             ) = (None, None, None, None, None, None, None, None)
 
         return (
-            gaze_expert,
-            au_expert,
-            pose_expert,
-            head_expert,
-            gaze_novice,
-            au_novice,
-            pose_novice,
-            head_novice,
+            gaze_user1,
+            au_user1,
+            pose_user1,
+            head_user1,
+            gaze_user2,
+            au_user2,
+            pose_user2,
+            head_user2,
         )
 
     def _extract_label(self, va: torch.Tensor) -> torch.Tensor:
@@ -364,12 +361,12 @@ class DialogAudioDataset(Dataset):
         data_dict = {}
 
         # Load the audio file and corresponding multimodal data
-        waveform, waveform_expert, waveform_novice = self._load_waveform(b)
+        waveform, waveform_user1, waveform_user2 = self._load_waveform(b)
         vad, vad_history = self._load_vad(b)
         lookahead = torch.zeros((1, self.vad_horizon, 2))
         label = self._extract_label(torch.cat((vad, lookahead), -2))
 
-        gaze_expert, au_expert, pose_expert, head_expert, gaze_novice, au_novice, pose_novice, head_novice = self._load_multimodal(b)
+        gaze_user1, au_user1, pose_user1, head_user1, gaze_user2, au_user2, pose_user2, head_user2 = self._load_multimodal(b)
 
         # Shape the audio waveform and multimodal data
         all_vad_frames_num = vad.size(1)
@@ -377,17 +374,14 @@ class DialogAudioDataset(Dataset):
 
         is_noxi = b["dataset_name"] == "noxi"
         if is_noxi:
-            waveform_expert = self._adjust_waveform_size(waveform_expert, all_vad_frames_num)
-            waveform_novice = self._adjust_waveform_size(waveform_novice, all_vad_frames_num)
-
-            gaze_expert = self._adjust_multimodal_size(gaze_expert, all_vad_frames_num)
-            au_expert = self._adjust_multimodal_size(au_expert, all_vad_frames_num)
-            pose_expert = self._adjust_multimodal_size(pose_expert, all_vad_frames_num)
-            head_expert = self._adjust_multimodal_size(head_expert, all_vad_frames_num)
-            gaze_novice = self._adjust_multimodal_size(gaze_novice, all_vad_frames_num)
-            au_novice = self._adjust_multimodal_size(au_novice, all_vad_frames_num)
-            pose_novice = self._adjust_multimodal_size(pose_novice, all_vad_frames_num)
-            head_novice = self._adjust_multimodal_size(head_novice, all_vad_frames_num)
+            gaze_user1 = self._adjust_multimodal_size(gaze_user1, all_vad_frames_num)
+            au_user1 = self._adjust_multimodal_size(au_user1, all_vad_frames_num)
+            pose_user1 = self._adjust_multimodal_size(pose_user1, all_vad_frames_num)
+            head_user1 = self._adjust_multimodal_size(head_user1, all_vad_frames_num)
+            gaze_user2 = self._adjust_multimodal_size(gaze_user2, all_vad_frames_num)
+            au_user2 = self._adjust_multimodal_size(au_user2, all_vad_frames_num)
+            pose_user2 = self._adjust_multimodal_size(pose_user2, all_vad_frames_num)
+            head_user2 = self._adjust_multimodal_size(head_user2, all_vad_frames_num)
 
         # Append the data to the dictionary
         data_dict["dataset_name"] = b["dataset_name"]
@@ -397,17 +391,20 @@ class DialogAudioDataset(Dataset):
         data_dict["label"] = label
         data_dict["vad_history"] = vad_history
 
+        waveform_user1 = self._adjust_waveform_size(waveform_user1, all_vad_frames_num)
+        waveform_user2 = self._adjust_waveform_size(waveform_user2, all_vad_frames_num)
+        data_dict["waveform_user1"] = waveform_user1
+        data_dict["waveform_user2"] = waveform_user2
+
         if is_noxi:
-            data_dict["waveform_expert"] = waveform_expert
-            data_dict["waveform_novice"] = waveform_novice
-            data_dict["gaze_expert"] = gaze_expert
-            data_dict["au_expert"] = au_expert
-            data_dict["pose_expert"] = pose_expert
-            data_dict["head_expert"] = head_expert
-            data_dict["gaze_novice"] = gaze_novice
-            data_dict["au_novice"] = au_novice
-            data_dict["pose_novice"] = pose_novice
-            data_dict["head_novice"] = head_novice
+            data_dict["gaze_user1"] = gaze_user1
+            data_dict["au_user1"] = au_user1
+            data_dict["pose_user1"] = pose_user1
+            data_dict["head_user1"] = head_user1
+            data_dict["gaze_user2"] = gaze_user2
+            data_dict["au_user2"] = au_user2
+            data_dict["pose_user2"] = pose_user2
+            data_dict["head_user2"] = head_user2
     
 
         return data_dict
@@ -418,20 +415,20 @@ class DialogAudioDataset(Dataset):
             "dataset_name": [],
             "session": [],
             "waveform": [],
-            "waveform_expert": [],
-            "waveform_novice": [],
+            "waveform_user1": [],
+            "waveform_user2": [],
             "vad": [],
             "label": [],
             "discrete_label": [],
             "vad_history": [],
-            "gaze_expert": [],
-            "au_expert": [],
-            "pose_expert": [],
-            "head_expert": [],
-            "gaze_novice": [],
-            "au_novice": [],
-            "pose_novice": [],
-            "head_novice": [],
+            "gaze_user1": [],
+            "au_user1": [],
+            "pose_user1": [],
+            "head_user1": [],
+            "gaze_user2": [],
+            "au_user2": [],
+            "pose_user2": [],
+            "head_user2": [],
         }
 
         self.discrete_label = None
@@ -454,19 +451,19 @@ class DialogAudioDataset(Dataset):
     #         "dataset_name": [],
     #         "session": [],
     #         "waveform": [],
-    #         "waveform_expert": [],
-    #         "waveform_novice": [],
+    #         "waveform_user1": [],
+    #         "waveform_user2": [],
     #         "vad": [],
     #         "label": [],
     #         "vad_history": [],
-    #         "gaze_expert": [],
-    #         "au_expert": [],
-    #         "pose_expert": [],
-    #         "head_expert": [],
-    #         "gaze_novice": [],
-    #         "au_novice": [],
-    #         "pose_novice": [],
-    #         "head_novice": [],
+    #         "gaze_user1": [],
+    #         "au_user1": [],
+    #         "pose_user1": [],
+    #         "head_user1": [],
+    #         "gaze_user2": [],
+    #         "au_user2": [],
+    #         "pose_user2": [],
+    #         "head_user2": [],
     #     }
 
     #     def adjust_waveform_size(waveform):
@@ -493,11 +490,11 @@ class DialogAudioDataset(Dataset):
     #     for i in tqdm(range(len(self.dataset["audio_path"]))):
     #         # Load the audio file and corresponding multimodal data
     #         b = self.dataset[i]
-    #         waveform, waveform_expert, waveform_novice = self._load_waveform(b)
+    #         waveform, waveform_user1, waveform_user2 = self._load_waveform(b)
     #         vad, vad_history = self._load_vad(b)
     #         lookahead = torch.zeros((1, self.vad_horizon, 2))
     #         label = self._extract_label(torch.cat((vad, lookahead), -2))
-    #         gaze_expert, au_expert, pose_expert, head_expert, gaze_novice, au_novice, pose_novice, head_novice = self._load_multimodal(b)
+    #         gaze_user1, au_user1, pose_user1, head_user1, gaze_user2, au_user2, pose_user2, head_user2 = self._load_multimodal(b)
 
     #         # Shape the audio waveform and multimodal data
     #         all_vad_frames_num = vad.size(1)
@@ -506,17 +503,17 @@ class DialogAudioDataset(Dataset):
 
     #         is_noxi = b["dataset_name"] == "noxi"
     #         if is_noxi:
-    #             waveform_expert = adjust_waveform_size(waveform_expert)
-    #             waveform_novice = adjust_waveform_size(waveform_novice)
+    #             waveform_user1 = adjust_waveform_size(waveform_user1)
+    #             waveform_user2 = adjust_waveform_size(waveform_user2)
 
-    #             gaze_expert = adjust_multimodal_size(gaze_expert)
-    #             au_expert = adjust_multimodal_size(au_expert)
-    #             pose_expert = adjust_multimodal_size(pose_expert)
-    #             head_expert = adjust_multimodal_size(head_expert)
-    #             gaze_novice = adjust_multimodal_size(gaze_novice)
-    #             au_novice = adjust_multimodal_size(au_novice)
-    #             pose_novice = adjust_multimodal_size(pose_novice)
-    #             head_novice = adjust_multimodal_size(head_novice)
+    #             gaze_user1 = adjust_multimodal_size(gaze_user1)
+    #             au_user1 = adjust_multimodal_size(au_user1)
+    #             pose_user1 = adjust_multimodal_size(pose_user1)
+    #             head_user1 = adjust_multimodal_size(head_user1)
+    #             gaze_user2 = adjust_multimodal_size(gaze_user2)
+    #             au_user2 = adjust_multimodal_size(au_user2)
+    #             pose_user2 = adjust_multimodal_size(pose_user2)
+    #             head_user2 = adjust_multimodal_size(head_user2)
 
     #         # Append the data to the dictionary
     #         self.data["dataset_name"].append(b["dataset_name"])
@@ -527,16 +524,16 @@ class DialogAudioDataset(Dataset):
     #         self.data["vad_history"].append(vad_history)
 
     #         if is_noxi:
-    #             self.data["waveform_expert"].append(waveform_expert)
-    #             self.data["waveform_novice"].append(waveform_novice)
-    #             self.data["gaze_expert"].append(gaze_expert)
-    #             self.data["au_expert"].append(au_expert)
-    #             self.data["pose_expert"].append(pose_expert)
-    #             self.data["head_expert"].append(head_expert)
-    #             self.data["gaze_novice"].append(gaze_novice)
-    #             self.data["au_novice"].append(au_novice)
-    #             self.data["pose_novice"].append(pose_novice)
-    #             self.data["head_novice"].append(head_novice)
+    #             self.data["waveform_user1"].append(waveform_user1)
+    #             self.data["waveform_user2"].append(waveform_user2)
+    #             self.data["gaze_user1"].append(gaze_user1)
+    #             self.data["au_user1"].append(au_user1)
+    #             self.data["pose_user1"].append(pose_user1)
+    #             self.data["head_user1"].append(head_user1)
+    #             self.data["gaze_user2"].append(gaze_user2)
+    #             self.data["au_user2"].append(au_user2)
+    #             self.data["pose_user2"].append(pose_user2)
+    #             self.data["head_user2"].append(head_user2)
             
     #     empty_keys = [key for key, value in self.data.items() if value == [] or (isinstance(value, list) and all(v is None for v in value))]
     #     for key in empty_keys:
@@ -547,7 +544,7 @@ class DialogAudioDataset(Dataset):
         ret = {}
 
         def process_tensor(k, tensor):
-            if k in ["waveform", "waveform_expert", "waveform_novice"]:
+            if k in ["waveform", "waveform_user1", "waveform_user2"]:
                 return tensor[
                     :,
                     int(
@@ -605,12 +602,11 @@ class DialogAudioDataset(Dataset):
             "label": label_tensor,
         }
 
-        if self.dataset_name == "noxi":
-            for key in ["waveform_expert", "waveform_novice"]:
-                if key in self.data:
-                    ret[key] = self.data[key][dset_idx][
-                        :, start_audio_idx:end_audio_idx
-                    ]
+        for key in ["waveform_user1", "waveform_user2"]:
+            if key in self.data:
+                ret[key] = self.data[key][dset_idx][
+                    :, start_audio_idx:end_audio_idx
+                ]
 
         if self.vad:
             # if end_vad_idx + self.vad_horizon > all_vad_frames.size(1):
@@ -627,33 +623,32 @@ class DialogAudioDataset(Dataset):
 
         if self.dataset_name == "noxi":
             for key in [
-                "gaze_expert",
-                "au_expert",
-                "pose_expert",
-                "head_expert",
-                "gaze_novice",
-                "au_novice",
-                "pose_novice",
-                "head_novice",
+                "gaze_user1",
+                "au_user1",
+                "pose_user1",
+                "head_user1",
+                "gaze_user2",
+                "au_user2",
+                "pose_user2",
+                "head_user2",
             ]:
                 if key in self.data:
                     ret[key] = self.data[key][dset_idx][:, start_vad_idx:end_vad_idx, :]
 
         if self.flip_channels and idx % 2:
             ret["vad"] = torch.stack((ret["vad"][:, :, 1], ret["vad"][:, :, 0]), dim=-1)
+            ret["waveform_user1"], ret["waveform_user2"] = (
+                ret["waveform_user2"],
+                ret["waveform_user1"],
+            )
             if self.vad and self.vad_history:
                 ret["vad_history"] = 1 - ret["vad_history"]
             if self.dataset_name == "noxi":
                 for key1, key2 in zip(
-                    ["gaze_expert", "au_expert", "pose_expert", "head_expert"],
-                    ["gaze_novice", "au_novice", "pose_novice", "head_novice"],
+                    ["gaze_user1", "au_user1", "pose_user1", "head_user1"],
+                    ["gaze_user2", "au_user2", "pose_user2", "head_user2"],
                 ):
                     ret[key1], ret[key2] = ret[key2], ret[key1]
-
-                ret["waveform_expert"], ret["waveform_novice"] = (
-                    ret["waveform_novice"],
-                    ret["waveform_expert"],
-                )
 
             if self.type == "discrete":
                 binary_str = "{:08b}".format(ret["label"].item())
@@ -691,21 +686,21 @@ def events_plot(batch, key=None, value=None, sample_rate=16000):
     from turntaking.augmentations import torch_to_praat_sound
     import numpy as np
 
-    vad_expert = batch["vad"][0][:, :, 0].squeeze()
-    vad_novice = batch["vad"][0][:, :, 1].squeeze()
+    vad_user1 = batch["vad"][0][:, :, 0].squeeze()
+    vad_user2 = batch["vad"][0][:, :, 1].squeeze()
 
-    indices_expert = np.where(vad_expert == 1)
-    indices_novice = np.where(vad_novice == 1)
+    indices_user1 = np.where(vad_user1 == 1)
+    indices_user2 = np.where(vad_user2 == 1)
 
-    waveform_expert = (
+    waveform_user1 = (
         torch_to_praat_sound(
-            batch["waveform_expert"][0].detach().numpy().copy(), sample_rate
+            batch["waveform_user1"][0].detach().numpy().copy(), sample_rate
         )
         + 1
     )
-    waveform_novice = (
+    waveform_user2 = (
         torch_to_praat_sound(
-            batch["waveform_novice"][0].detach().numpy().copy(), sample_rate
+            batch["waveform_user2"][0].detach().numpy().copy(), sample_rate
         )
         - 1
     )
@@ -713,33 +708,33 @@ def events_plot(batch, key=None, value=None, sample_rate=16000):
     fig = plt.figure(figsize=(100, 2), dpi=300)
     ax = fig.add_subplot(111)
 
-    np.arange(len(vad_expert))
-    snd_x = np.linspace(0, len(vad_expert), len(waveform_expert))
+    np.arange(len(vad_user1))
+    snd_x = np.linspace(0, len(vad_user1), len(waveform_user1))
 
-    ax.set_xlim([0, len(vad_expert)])
-    ax.set_xticks(range(0, len(vad_expert) + 1, 250), fontsize=3)
+    ax.set_xlim([0, len(vad_user1)])
+    ax.set_xticks(range(0, len(vad_user1) + 1, 250), fontsize=3)
 
-    ax.plot(snd_x, waveform_expert.values.T, alpha=0.4, linewidth=0.01)
-    ax.plot(snd_x, waveform_novice.values.T, alpha=0.4, linewidth=0.01)
+    ax.plot(snd_x, waveform_user1.values.T, alpha=0.4, linewidth=0.01)
+    ax.plot(snd_x, waveform_user2.values.T, alpha=0.4, linewidth=0.01)
 
-    # ax.plot(x,vad_expert, linewidth=0.01)
-    # ax.plot(x,vad_novice, linewidth=0.01)
+    # ax.plot(x,vad_user1, linewidth=0.01)
+    # ax.plot(x,vad_user2, linewidth=0.01)
 
-    for index in indices_expert[0]:
+    for index in indices_user1[0]:
         plt.hlines(y=1, xmin=index - 0.5, xmax=index + 0.5, linewidth=1)
-    for index in indices_novice[0]:
+    for index in indices_user2[0]:
         plt.hlines(y=-1, xmin=index - 0.5, xmax=index + 0.5, linewidth=1)
 
     if value is not None:
-        events_expert = value[:, :, 0].squeeze()
-        events_novice = value[:, :, 1].squeeze()
+        events_user1 = value[:, :, 0].squeeze()
+        events_user2 = value[:, :, 1].squeeze()
 
-        indices_events_expert = np.where(events_expert == 1)
-        indices_events_novice = np.where(events_novice == 1)
+        indices_events_user1 = np.where(events_user1 == 1)
+        indices_events_user2 = np.where(events_user2 == 1)
 
-        for index in indices_events_expert[0]:
+        for index in indices_events_user1[0]:
             plt.vlines(x=index, ymin=-2, ymax=2, linewidth=1, color="k")
-        for index in indices_events_novice[0]:
+        for index in indices_events_user2[0]:
             plt.vlines(x=index, ymin=-2, ymax=2, linewidth=1, color="k")
 
     if key is not None:

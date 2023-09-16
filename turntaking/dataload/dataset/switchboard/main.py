@@ -6,10 +6,10 @@ if __name__ == "__main__":
 
     dset = load_switchboard(
         split="train",
-        train_files="/ahc/work2/kazuyo-oni/conv_ssl/conv_ssl/conf/data_cut/train.txt",
+        train_files="/ahc/work2/kazuyo-oni/turntaking/turntaking/dataload/dataset/switchboard/files/debug_train.txt",
     )
-    # dset = load_switchboard(split="train")
+    dset = load_switchboard(split="train")
 
-    # d = dset[0]
+    d = dset[0]
 
-    # pprint(d)
+    print(d)

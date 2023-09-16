@@ -122,14 +122,14 @@ def combine_speaker_utterance_and_words(
     # )
 
     # Read utterance-level annotation
-    if speaker == "expert":
+    if speaker == "user1":
         trans_filename = "vad_expert.txt"
     else:
         trans_filename = "vad_novice.txt"
     trans_list = read_txt(join(session_dir, trans_filename))
 
     # correct channels for wavefiles
-    speaker = 0 if speaker == "expert" else 1
+    speaker = 0 if speaker == "user1" else 1
 
     # Combine word-/utterance- level annotations
     utterances = []
@@ -164,7 +164,7 @@ def extract_dialog(session, session_dir, apply_regexp=True):
     # Speaker A: original name in annotations
     a_utterances = combine_speaker_utterance_and_words(
         session,
-        speaker="expert",
+        speaker="user1",
         session_dir=session_dir,
         apply_regexp=apply_regexp,
     )
@@ -172,7 +172,7 @@ def extract_dialog(session, session_dir, apply_regexp=True):
     # Speaker B: original name in annotations
     b_utterances = combine_speaker_utterance_and_words(
         session,
-        speaker="novice",
+        speaker="user2",
         session_dir=session_dir,
         apply_regexp=apply_regexp,
     )
