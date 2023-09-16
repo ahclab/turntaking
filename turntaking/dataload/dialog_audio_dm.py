@@ -158,10 +158,16 @@ class DialogAudioDM(pl.LightningDataModule):
         # Only flip during training...
         if split == "train":
             flip = self.flip_channels
+            undersampling = self.undersampling
+            oversampling = self.oversampling
         elif split == "val":
             flip = False
+            undersampling = False
+            oversampling = False
         elif split == "test":
             flip = False
+            undersampling = False
+            oversampling = False
         else:
             print("SPLIT ERROR")
             exit(1)
@@ -186,8 +192,8 @@ class DialogAudioDM(pl.LightningDataModule):
             bin_times=self.bin_times,
             pre_frames=self.pre_frames,
             threshold_ratio=self.threshold_ratio,
-            undersampling=self.undersampling,
-            oversampling=self.oversampling
+            undersampling=undersampling,
+            oversampling=oversampling
         )
 
     def setup(self, stage: Optional[str] = "fit"):

@@ -1,51 +1,78 @@
 import torch
+from sklearn.metrics import roc_auc_score
 
-def compute_classification_metrics(preds, labels):
+def safe_roc_auc_score(y_true, y_score, **kwargs):
+    try:
+        return roc_auc_score(y_true, y_score, **kwargs)
+    except ValueError:
+        # この場合、AUCは定義されていないため0.5を返す
+        return 0.5
+
+def compute_classification_metrics(preds, labels, top_k=5):
     """
-    Compute accuracy, precision, recall, f1-score and confusion matrix for the given predictions and labels.
-    
-    :param predictions: Model's predictions, shape: (batch_size, num_frames, num_classes)
-    :param labels: True labels, shape: (batch_size, num_frames, 1)
-    :return: Dictionary containing accuracy, precision, recall, f1-score and confusion matrix
+    Compute accuracy, precision, recall, f1-score, top-k accuracy, multi-class AUC, and micro/macro-averaged metrics.
     """
     num_classes = preds.size(-1)
-    
-    # Get the predicted classes
     _, predicted_classes = preds.max(dim=-1)
     labels_squeezed = labels.squeeze(dim=-1)
-    
+
     # Initialize metrics
     confusion_matrix = torch.zeros(num_classes, num_classes, dtype=torch.int64)
     TP = torch.zeros(num_classes)
     FP = torch.zeros(num_classes)
     FN = torch.zeros(num_classes)
     TN = torch.zeros(num_classes)
-    
+
     # Populate confusion matrix
     for t, p in zip(labels_squeezed.view(-1), predicted_classes.view(-1)):
         confusion_matrix[t, p] += 1
 
-    # Compute TP, FP, TN, FN
+    # Compute TP, FP, TN, FN for each class
     for i in range(num_classes):
         TP[i] = confusion_matrix[i, i]
         FP[i] = confusion_matrix[:, i].sum() - TP[i]
         FN[i] = confusion_matrix[i, :].sum() - TP[i]
         TN[i] = confusion_matrix.sum() - (FP[i] + FN[i] + TP[i])
+
+    epsilon = 1e-10  # a small value to avoid division by zero
+    # Macro-average metrics
+    precision_macro = TP / (TP + FP + epsilon)
+    recall_macro = TP / (TP + FN + epsilon)
+    f1_score_macro = 2 * (precision_macro * recall_macro) / (precision_macro + recall_macro + epsilon)
+
+    # Micro-average metrics
+    precision_micro = TP.sum() / (TP.sum() + FP.sum())
+    recall_micro = TP.sum() / (TP.sum() + FN.sum())
+    f1_score_micro = 2 * (precision_micro * recall_micro) / (precision_micro + recall_micro)
+
+    # Top-k accuracy
+    _, top_k_preds = preds.topk(top_k, dim=-1)
+    correct_top_k = top_k_preds.eq(labels_squeezed.unsqueeze(-1).expand_as(top_k_preds))
+    top_k_accuracy = correct_top_k.any(dim=-1).float().mean().item()
     
-    # Compute precision, recall and F1-score
-    precision = TP / (TP + FP)
-    recall = TP / (TP + FN)
-    f1_score = 2 * (precision * recall) / (precision + recall)
-    
-    # Compute accuracy
-    accuracy = TP.sum() / confusion_matrix.sum()
-    
+    # Multi-class AUC
+    # Convert predictions to probability via softmax
+    probs = torch.nn.functional.softmax(preds, dim=-1)
+    one_hot_labels = torch.nn.functional.one_hot(labels_squeezed, num_classes=num_classes)
+
+    # Reshape the tensors for AUC calculation
+    one_hot_labels_reshaped = one_hot_labels.view(-1, num_classes).cpu().numpy()
+    probs_reshaped = probs.view(-1, num_classes).cpu().numpy()
+
+    multi_class_auc = safe_roc_auc_score(one_hot_labels_reshaped, probs_reshaped, multi_class='ovr')
+
     return {
-        'accuracy': accuracy.item(),
-        'precision': precision.mean().item(),
-        'recall': recall.mean().item(),
-        'f1_score': f1_score.mean().item(),
+        'accuracy': (TP.sum() / confusion_matrix.sum()).item(),
+        'top_k_accuracy': top_k_accuracy,
+        # 'macro_precision': precision_macro.mean().item(),
+        # 'macro_recall': recall_macro.mean().item(),
+        # 'macro_f1': f1_score_macro.mean().item(),
+        # 'micro_precision': precision_micro.item(),
+        # 'micro_recall': recall_micro.item(),
+        # 'micro_f1': f1_score_micro.item(),
+        # 'multi_class_auc': multi_class_auc
     }
+
 
 def compute_regression_metrics(preds, labels):
     """
