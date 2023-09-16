@@ -18,7 +18,7 @@ from turntaking.utils import (
     write_json,
 )
 from turntaking.dataload import DialogAudioDM
-from turntaking.evaluation import roc_to_threshold, events_plot, compute_classification_metrics, compute_regression_metrics, compute_comparative_metrics
+from turntaking.evaluation import roc_to_threshold, events_plot, compute_classification_metrics, compute_regression_metrics, compute_comparative_metrics, compute_confusion_matrix
 import warnings
 
 everything_deterministic()
@@ -94,6 +94,10 @@ class Test:
 
         if self.conf["model"]["vap"]["type"] == "discrete":
             metrics = compute_classification_metrics(probs, labels)
+            conf_matrix = compute_confusion_matrix(probs, labels)
+            conf_matrix = pd.DataFrame(conf_matrix.cpu().numpy())
+            print("Saved metrix -> ", join(self.output_dir, "metrix.csv"))
+            conf_matrix.to_csv(join(self.output_dir, "metrix.csv"), index=True)
         elif self.conf["model"]["vap"]["type"] == "independent":
             metrics = compute_regression_metrics(probs, labels)
         else:

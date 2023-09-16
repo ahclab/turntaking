@@ -5,8 +5,33 @@ def safe_roc_auc_score(y_true, y_score, **kwargs):
     try:
         return roc_auc_score(y_true, y_score, **kwargs)
     except ValueError:
-        # この場合、AUCは定義されていないため0.5を返す
         return 0.5
+
+def compute_confusion_matrix(preds, labels):
+    """
+    Compute the confusion matrix for the given predictions and labels.
+    
+    :param preds: Model's predictions, shape: (batch_size, num_classes)
+    :param labels: True labels, shape: (batch_size)
+    :return: Confusion matrix of shape (num_classes, num_classes)
+    """
+    device = preds.device  # Get the device of the preds tensor (could be 'cpu', 'cuda:0', etc.)
+    num_classes = preds.size(-1)
+    
+    # Get the predicted classes
+    _, predicted_classes = preds.max(dim=-1)
+    
+    # Ensure labels are on the same device as preds
+    labels = labels.to(device)
+    
+    # Initialize confusion matrix on the same device
+    confusion_matrix = torch.zeros(num_classes, num_classes, dtype=torch.int64, device=device)
+    
+    # Populate confusion matrix
+    for t, p in zip(labels, predicted_classes):
+        confusion_matrix[t, p] += 1
+
+    return confusion_matrix
 
 def compute_classification_metrics(preds, labels, top_k=5):
     """
