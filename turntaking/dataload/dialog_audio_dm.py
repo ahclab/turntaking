@@ -18,6 +18,7 @@ from tqdm import tqdm
 from turntaking.dataload.dialog_audio_dataset import DialogAudioDataset
 from turntaking.dataload.dataset.switchboard import load_switchboard
 from turntaking.dataload.dataset.noxi import load_noxi
+from turntaking.dataload.dataset.scope import load_scope
 from turntaking.dataload.utils import repo_root, OmegaConfArgs, load_config
 
 
@@ -47,8 +48,17 @@ def get_dialog_audio_datasets(
                 test_files=test_files,
             )
         )
+    elif datasets == "scope":
+        dsets.append(
+            load_scope(
+                split=split,
+                train_files=train_files,
+                val_files=val_files,
+                test_files=test_files,
+            )
+        )
     else:
-        raise NotImplementedError(f"{d} is not yet implemented")
+        raise NotImplementedError(f"{datasets} is not yet implemented")
     dsets = concatenate_datasets(dsets)
     return dsets
 

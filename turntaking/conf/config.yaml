@@ -9,7 +9,7 @@ info:
 train:
   trial_count: 1
   seed: null
-  max_epochs: 50
+  max_epochs: 1
   patience: 3
   optimizer: "AdamW"
   verbose: False
@@ -18,7 +18,7 @@ train:
   learning_rate: 3.63e-4
 
 data:
-  datasets: "switchboard"
+  datasets: "scope"
   type: "sliding"
   sample_rate: ${model.encoder.sample_rate}
   audio_mono: true

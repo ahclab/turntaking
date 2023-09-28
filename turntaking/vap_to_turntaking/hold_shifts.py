@@ -383,7 +383,7 @@ class HoldShift:
             max_frame=max_frame,
             min_context=min_context,
         )
-        shift_ov_oh, _, _ = self.match_template(
+        shift_ov_oh, pre_shift_ov_oh, long_shift_ov_onset = self.match_template(
             filled_vad,
             ds,
             self.shift_overlap_template,
@@ -424,6 +424,8 @@ class HoldShift:
             "pre_hold": pre_hold_oh,
             "long_hold_onset": long_hold_onset,
             "shift_overlap": shift_ov_oh,
+            "pre_shift_ov_oh": pre_shift_ov_oh,
+            "long_shift_ov_onset": long_shift_ov_onset,
             "non_shift": non_shift_oh,
         }
 
@@ -470,16 +472,16 @@ if __name__ == "__main__":
 
     fig, ax = plot_vad_oh(va[0])
 
-    # _, ax = plot_event(tt["shift"][0], ax=ax)
-    # _, ax = plot_event(tt["pre_shift"][0], color=["g", "g"], alpha=0.2, ax=ax)
-    # _, ax = plot_event(tt["long_shift_onset"][0], color=["r", "r"], alpha=0.2, ax=ax)
+    _, ax = plot_event(tt["shift"][0], ax=ax)
+    _, ax = plot_event(tt["pre_shift"][0], color=["g", "g"], alpha=0.2, ax=ax)
+    _, ax = plot_event(tt["long_shift_onset"][0], color=["r", "r"], alpha=0.2, ax=ax)
 
-    # _, ax = plot_event(tt["shift_overlap"][0], ax=ax)
+    _, ax = plot_event(tt["shift_overlap"][0], ax=ax)
 
-    # _, ax = plot_event(tt["hold"][0], ax=ax)
-    # _, ax = plot_event(tt["pre_hold"][0], color=["g", "g"], alpha=0.2, ax=ax)
-    # _, ax = plot_event(tt["long_hold_onset"][0], color=["r", "r"], alpha=0.2, ax=ax)
+    _, ax = plot_event(tt["hold"][0], ax=ax)
+    _, ax = plot_event(tt["pre_hold"][0], color=["g", "g"], alpha=0.2, ax=ax)
+    _, ax = plot_event(tt["long_hold_onset"][0], color=["r", "r"], alpha=0.2, ax=ax)
 
     _, ax = plot_event(tt["non_shift"][0], color=["r", "r"], alpha=0.2, ax=ax)
     # plt.pause(0.1)
-    plt.savefig("/ahc/work2/kazuyo-oni/conv_ssl/output_graph/hs/non_shift.png")
+    plt.savefig("/ahc/work2/kazuyo-oni/turntaking/output_graph/hs/non_shift.png")

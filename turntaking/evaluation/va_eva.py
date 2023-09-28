@@ -22,10 +22,14 @@ def compute_confusion_matrix(preds, labels):
     _, predicted_classes = preds.max(dim=-1)
     
     # Ensure labels are on the same device as preds
-    labels = labels.to("cpu")
+    labels = labels.squeeze(2).to("cpu")
     
     # Initialize confusion matrix on the same device
     confusion_matrix = torch.zeros(num_classes, num_classes, dtype=torch.int64, device="cpu")
+
+    print(confusion_matrix.shape)
+    print(labels.shape)
+    print(predicted_classes.shape)
     
     # Populate confusion matrix
     for t, p in zip(labels, predicted_classes):
