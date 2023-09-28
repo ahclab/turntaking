@@ -117,11 +117,13 @@ class TurnTakingMetrics(Metric):
         metric_kwargs,
         threshold_shift_hold=0.5,
         threshold_pred_shift=0.5,
+        threshold_pred_ov=0.5,
         threshold_short_long=0.5,
         threshold_bc_pred=0.5,
         shift_hold_pr_curve=False,
         bc_pred_pr_curve=False,
         shift_pred_pr_curve=False,
+        ov_pred_pr_curve=False,
         long_short_pr_curve=False,
         frame_hz=100,
         dist_sync_on_step=False,
@@ -136,6 +138,12 @@ class TurnTakingMetrics(Metric):
         self.hs = F1_Hold_Shift(threshold=threshold_shift_hold)
         self.predict_shift = F1Score(
             threshold=threshold_pred_shift,
+            num_classes=2,
+            multiclass=True,
+            average="weighted",
+        )
+        self.predict_ov = F1Score(
+            threshold=threshold_pred_ov,
             num_classes=2,
             multiclass=True,
             average="weighted",
@@ -167,6 +175,10 @@ class TurnTakingMetrics(Metric):
         self.pr_curve_shift_pred = shift_pred_pr_curve
         if self.pr_curve_shift_pred:
             self.shift_pred_pr = PrecisionRecallCurve(pos_label=1)
+        
+        self.pr_curve_ov_pred = ov_pred_pr_curve
+        if self.pr_curve_ov_pred:
+            self.ov_pred_pr = PrecisionRecallCurve(pos_label=1)
 
         self.pr_curve_long_short = long_short_pr_curve
         if self.pr_curve_long_short:
@@ -282,6 +294,40 @@ class TurnTakingMetrics(Metric):
             if self.pr_curve_shift_pred:
                 self.shift_pred_pr.update(probs, labels)
 
+    def update_predict_overlap(self, p, pos, neg):
+        probs, labels = [], []
+
+        # At the onset of a SHORT utterance the probability associated
+        # with that person being the next speaker should be low -> 0
+        if pos.sum() > 0:
+            w = torch.where(pos)
+            p_pos = p[w]
+            #pprint(len(p_pos))
+            probs.append(p_pos)
+            labels.append(torch.ones_like(p_pos))
+
+        # At the onset of a LONG utterance the probability associated
+        # with that person being the next speaker should be high -> 1
+        if neg.sum() > 0:
+            w = torch.where(neg)
+            p_neg = 1 - p[w]  # reverse to make negatives have label 0
+            #pprint(len(p_neg))
+            probs.append(p_neg)
+            labels.append(torch.zeros_like(p_neg))
+
+        if len(probs) > 0:
+            probs = torch.cat(probs)
+
+            #probs =  torch.zeros_like(probs, dtype=torch.long)
+
+            labels = torch.cat(labels).long()
+            #pprint(probs)
+            #pprint(labels)
+            self.predict_ov.update(probs, labels)
+
+            if self.pr_curve_ov_pred:
+                self.ov_pred_pr.update(probs, labels)
+
     def update_predict_backchannel(self, bc_pred_probs, pos, neg):
         """
         bc_pred_probs contains the probabilities associated with the given speaker
@@ -329,6 +375,7 @@ class TurnTakingMetrics(Metric):
         super().reset()
         self.hs.reset()
         self.predict_shift.reset()
+        self.predict_ov.reset()
         self.short_long.reset()
         self.predict_backchannel.reset()
         if self.pr_curve_shift_hold:
@@ -339,6 +386,9 @@ class TurnTakingMetrics(Metric):
 
         if self.pr_curve_shift_pred:
             self.shift_pred_pr.reset()
+        
+        if self.pr_curve_ov_pred:
+            self.ov_pred_pr.reset()
 
         if self.pr_curve_long_short:
             self.long_short_pr.reset()
@@ -362,6 +412,8 @@ class TurnTakingMetrics(Metric):
                     'predict_shift_neg',
                     'predict_bc_pos',
                     'predict_bc_neg'
+                    'predict_shift_ov_pos',
+                    'predict_shift_ov_neg'
                 ]
         """
 
@@ -378,6 +430,11 @@ class TurnTakingMetrics(Metric):
         # Predict Shifts
         self.update_predict_shift(
             p, pos=events["predict_shift_pos"], neg=events["predict_shift_neg"]
+        )
+
+        # Predict Overlaps
+        self.update_predict_overlap(
+            p, pos=events["predict_shift_ov_pos"], neg=events["predict_shift_ov_neg"]
         )
 
         # PREDICT BACKCHANNELS & Short/Long
@@ -400,6 +457,7 @@ class TurnTakingMetrics(Metric):
     def compute(self):
         f1_hs = self.hs.compute()
         f1_predict_shift = self.predict_shift.compute()
+        f1_predict_ov = self.predict_ov.compute()
         f1_short_long = self.short_long.compute()
 
         ret = {
@@ -412,6 +470,11 @@ class TurnTakingMetrics(Metric):
             ret["f1_bc_prediction"] = self.predict_backchannel.compute()
         except:
             ret["f1_bc_prediction"] = -1
+        
+        try:
+            ret["f1_predict_ov"] = self.predict_ov.compute()
+        except:
+            ret["f1_predict_ov"] = -1
 
         if self.pr_curve_shift_hold:
             ret["pr_curve_shift_hold"] = self.shift_hold_pr.compute()
@@ -421,6 +484,9 @@ class TurnTakingMetrics(Metric):
 
         if self.pr_curve_shift_pred:
             ret["pr_curve_shift_pred"] = self.shift_pred_pr.compute()
+
+        if self.pr_curve_ov_pred:
+            ret["pr_curve_ov_pred"] = self.ov_pred_pr.compute()
 
         if self.pr_curve_long_short:
             ret["pr_curve_long_short"] = self.long_short_pr.compute()

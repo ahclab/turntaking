@@ -156,3 +156,4 @@ output/
 .DS_Store
 ._*
 .ruff_cache
+output_graph/

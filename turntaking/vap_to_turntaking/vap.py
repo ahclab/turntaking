@@ -233,6 +233,7 @@ class ActivityEmb(nn.Module):
             self.subset_silence, self.subset_silence_hold = self.init_subset_silence()
             self.subset_active, self.subset_active_hold = self.init_subset_active()
             self.bc_prediction = self.init_subset_backchannel()
+            self.ov_prediction = self.init_subset_overlap()
         self.requires_grad_(False)
 
     def init_codebook(self) -> nn.Module:
@@ -362,6 +363,24 @@ class ActivityEmb(nn.Module):
         hold = self.onehot_to_idx(hold_oh)
         hold = self.sort_idx(hold)
         return shift, hold
+
+    def init_subset_overlap(self, n=4):
+        if n != 4:
+            raise NotImplementedError("Not implemented for bin-size != 4")
+
+        # at least 1 bin active over 3 bins
+        overlap_speaker = WindowHelper.all_permutations_mono(n=1, start=0)
+        ones = torch.ones((overlap_speaker.shape[0], 1))
+        overlap_speaker = torch.cat((ones, overlap_speaker, ones, ones), dim=-1)
+
+        # all permutations of 3 bins
+        current = WindowHelper.all_permutations_mono(n=2, start=0)
+        ones = torch.ones((current.shape[0], 1))
+        zeros = torch.zeros((current.shape[0], 1))
+        current = torch.cat((ones, current, zeros), dim=-1)
+
+        ov_both = WindowHelper.combine_speakers(overlap_speaker, current, mirror=True)
+        return self.onehot_to_idx(ov_both)
 
     def init_subset_backchannel(self, n=4):
         if n != 4:
@@ -497,13 +516,27 @@ class VAP(nn.Module, Probabilites):
         return s
 
     def _probs_on_silence(self, probs):
+        # print(self.emb.subset_silence)
+        # print(self.emb.subset_silence_hold)
+        """
+        tensor([[ 12,  13,  14,  15],
+                [192, 208, 224, 240]]) # self.emb.subset_silence
+        tensor([[192, 208, 224, 240],
+                [ 12,  13,  14,  15]]) # self.emb.subset_silence_hold
+        """
         return self._marginal_probs(
             probs, self.emb.subset_silence, self.emb.subset_silence_hold
         )
 
     def _probs_on_active(self, probs):
-        #pprint(self.emb.subset_active)
-        #pprint(self.emb.subset_active_hold)
+        # print(self.emb.subset_active)
+        # print(self.emb.subset_active_hold)
+        """
+        tensor([[ 12,  13,  14,  15,  28,  29,  30,  31,  60,  61,  62,  63],
+                [192, 193, 195, 208, 209, 211, 224, 225, 227, 240, 241, 243]]) # self.emb.subset_active
+        tensor([[192, 208, 224, 240],
+                [ 12,  13,  14,  15]]) # self.emb.subset_active_hold
+        """
         return self._marginal_probs(
             probs, self.emb.subset_active, self.emb.subset_active_hold
         )
@@ -527,9 +560,24 @@ class VAP(nn.Module, Probabilites):
         ).to(probs.device)
         return act_probs.sum(dim=-2)  # sum over classes
 
+    def probs_overlap(self, probs):
+        ap = probs[..., self.emb.ov_prediction[0]].sum(-1)
+        bp = probs[..., self.emb.ov_prediction[1]].sum(-1)
+        return torch.stack((ap, bp), dim=-1)
+
     def probs_backchannel(self, probs):
-        #pprint(self.emb.bc_prediction[0])
-        #pprint(probs[..., self.emb.bc_prediction[0]])
+        # print(self.emb.bc_prediction[0])
+        # print(self.emb.bc_prediction[1])
+        """
+        tensor([132, 196, 164, 228, 148, 212, 180, 244, 130, 194, 162, 226, 146, 210,
+                178, 242, 134, 198, 166, 230, 150, 214, 182, 246, 129, 193, 161, 225,
+                145, 209, 177, 241, 133, 197, 165, 229, 149, 213, 181, 245, 131, 195,
+                163, 227, 147, 211, 179, 243, 135, 199, 167, 231, 151, 215, 183, 247])
+        tensor([ 72,  76,  74,  78,  73,  77,  75,  79,  40,  44,  42,  46,  41,  45,
+                43,  47, 104, 108, 106, 110, 105, 109, 107, 111,  24,  28,  26,  30,
+                25,  29,  27,  31,  88,  92,  90,  94,  89,  93,  91,  95,  56,  60,
+                58,  62,  57,  61,  59,  63, 120, 124, 122, 126, 121, 125, 123, 127])
+        """
         ap = probs[..., self.emb.bc_prediction[0]].sum(-1)
         bp = probs[..., self.emb.bc_prediction[1]].sum(-1)
         return torch.stack((ap, bp), dim=-1)
@@ -553,9 +601,6 @@ class VAP(nn.Module, Probabilites):
         else:  # discrete
             sil_probs = self._probs_on_silence(probs)
             act_probs = self._probs_on_active(probs)
-        
-        #pprint(sil_probs)
-        #pprint(act_probs)
 
         # Start wit all zeros
         # p_a: probability of A being next speaker (channel: 0)
@@ -564,6 +609,12 @@ class VAP(nn.Module, Probabilites):
         p_b = torch.zeros_like(va[..., 0])
 
         # dialog states
+        """Vad to the full state of a 2 person vad dialog
+            0: only speaker 0
+            1: none
+            2: both
+            3: only speaker 1
+        """
         ds = vad_to_dialog_vad_states(va)
         silence = ds == 1
         a_current = ds == 0
@@ -612,10 +663,12 @@ class VAP(nn.Module, Probabilites):
             probs = logits.softmax(dim=-1)
             p = self.probs_next_speaker(probs=probs, va=va, type=self.type)
             p_bc = self.probs_backchannel(probs)
+            # p_ov = self.probs_overlap(probs)
         else:
             probs = logits.sigmoid()
             p = self.probs_next_speaker(probs=probs, va=va, type=self.type)
             p_bc = None  # comparative
+            # p_ov = None
             if self.type == "independent":
                 # Backchannel probs (dependent on embedding and VA)
                 p_bc = probs_ind_backchannel(probs)
@@ -627,7 +680,7 @@ if __name__ == "__main__":
     from turntaking.vap_to_turntaking.config.example_data import (event_conf,
                                                                   example)
 
-    vapper = VAP(type="comparative")
+    vapper = VAP(type="discrete")
     va = example["va"]
     y = vapper.extract_label(va)
     print("va: ", tuple(va.shape))

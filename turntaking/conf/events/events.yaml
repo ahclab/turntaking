@@ -28,4 +28,5 @@ threshold:
   SH: 0.5
   SL: 0.5
   S_pred: 0.3
+  OV_pred: 0.1
   BC_pred: 0.1

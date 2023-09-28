@@ -219,18 +219,18 @@ class TurnTakingEvents:
         #######################################################
         # Pos: window, on activity, prior a overlap-SHIFT
         # Neg: Sampled from NON-SHIFT, on activity.
-        # n_predict_shift_ov = self.count_occurances(tt["pre_shift_ov_oh"])
-        # if n_predict_shift_ov == 0:
-        #     predict_shift_ov_neg = torch.zeros_like(tt["pre_shift_ov_oh"])
-        # else:
-        #     # NON-SHIFT where someone is active
-        #     activity = ds == 0  # only A
-        #     activity = torch.logical_or(activity, ds == 3)  # AND only B
-        #     activity = activity[:, : tt["non_shift"].shape[1]].unsqueeze(-1)
-        #     non_shift_ov_on_activity = torch.logical_and(tt["non_shift"], activity)
-        #     predict_shift_ov_neg = self.sample_negatives(
-        #         non_shift_ov_on_activity, n_predict_shift_ov, dur=self.metric_pre_label_dur
-        #     )
+        n_predict_shift_ov = self.count_occurances(tt["pre_shift_ov_oh"])
+        if n_predict_shift_ov == 0:
+            predict_shift_ov_neg = torch.zeros_like(tt["pre_shift_ov_oh"])
+        else:
+            # NON-SHIFT where someone is active
+            activity = ds == 0  # only A
+            activity = torch.logical_or(activity, ds == 3)  # AND only B
+            activity = activity[:, : tt["non_shift"].shape[1]].unsqueeze(-1)
+            non_shift_ov_on_activity = torch.logical_and(tt["non_shift"], activity)
+            predict_shift_ov_neg = self.sample_negatives(
+                non_shift_ov_on_activity, n_predict_shift_ov, dur=self.metric_pre_label_dur
+            )
 
         # pprint(bcs["pre_backchannel"][0])
         # pprint(n_pre_bc)
@@ -245,8 +245,8 @@ class TurnTakingEvents:
             "predict_shift_neg": predict_shift_neg[:, :max_frame],
             "predict_bc_pos": bcs["pre_backchannel"][:, :max_frame],
             "predict_bc_neg": predict_bc_neg[:, :max_frame],
-            # "predict_shift_ov_pos": tt["pre_shift_ov_oh"][:, :max_frame],
-            # "predict_shift_ov_neg": predict_shift_ov_neg[:, :max_frame],
+            "predict_shift_ov_pos": tt["pre_shift_ov_oh"][:, :max_frame],
+            "predict_shift_ov_neg": predict_shift_ov_neg[:, :max_frame],
         }
 
 

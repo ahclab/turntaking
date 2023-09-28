@@ -389,8 +389,8 @@ class HoldShift:
             self.shift_overlap_template,
             pre_cond_frames=self.pre_offset_shift,
             post_cond_frames=self.post_onset_shift,
-            pre_match=False,
-            onset_match=False,
+            pre_match=True,
+            onset_match=True,
             max_frame=max_frame,
             min_context=min_context,
         )

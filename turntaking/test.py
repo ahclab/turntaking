@@ -55,7 +55,9 @@ class Test:
                     "Loading thresholds: ", join(dirname(model_path), "thresholds.json")
                 )
                 self.thresholds = {
+                    "shift_hold": torch.tensor(thresholds_dict["shift_hold"]),
                     "pred_shift": torch.tensor(thresholds_dict["pred_shift"]),
+                    "pred_ov": torch.tensor(thresholds_dict["pred_ov"]),
                     "pred_bc": torch.tensor(thresholds_dict["pred_bc"]),
                     "short_long": torch.tensor(thresholds_dict["short_long"]),
                 }
@@ -66,6 +68,7 @@ class Test:
             self.model.test_metric = self.model.init_metric(
                 threshold_shift_hold=self.thresholds.get("shift_hold", 0.5),
                 threshold_pred_shift=self.thresholds.get("pred_shift", 0.3),
+                threshold_pred_ov=self.thresholds.get("pred_ov", 0.3),
                 threshold_short_long=self.thresholds.get("short_long", 0.5),
                 threshold_bc_pred=self.thresholds.get("pred_bc", 0.1),
             )
@@ -120,6 +123,7 @@ class Test:
             "shift_hold": events_score["f1_hold_shift"].item(),
             "short_long": events_score["f1_short_long"].item(),
             "shift_pred": events_score["f1_predict_shift"].item(),
+            "ov_pred": events_score["f1_predict_ov"].item(),
             "bc_pred": events_score["f1_bc_prediction"].item(),
             "shift_f1": events_score["shift"]["f1"].item(),
             "shift_precision": events_score["shift"]["precision"].item(),

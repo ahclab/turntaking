@@ -442,11 +442,13 @@ class Model(pl.LightningModule):
         conf=None,
         threshold_shift_hold=None,
         threshold_pred_shift=None,
+        threshold_pred_ov=None,
         threshold_short_long=None,
         threshold_bc_pred=None,
         shift_hold_pr_curve=False,
         bc_pred_pr_curve=False,
         shift_pred_pr_curve=False,
+        ov_pred_pr_curve=False,
         long_short_pr_curve=False,
     ):
         if conf is None:
@@ -457,6 +459,9 @@ class Model(pl.LightningModule):
 
         if threshold_pred_shift is None:
             threshold_pred_shift = conf["events"]["threshold"]["S_pred"]
+        
+        if threshold_pred_ov is None:
+            threshold_pred_ov = conf["events"]["threshold"]["OV_pred"]
 
         if threshold_bc_pred is None:
             threshold_bc_pred = conf["events"]["threshold"]["BC_pred"]
@@ -470,10 +475,12 @@ class Model(pl.LightningModule):
             metric_kwargs=conf["events"]["metric"],
             threshold_shift_hold=threshold_shift_hold,
             threshold_pred_shift=threshold_pred_shift,
+            threshold_pred_ov=threshold_pred_ov,
             threshold_short_long=threshold_short_long,
             threshold_bc_pred=threshold_bc_pred,
             shift_hold_pr_curve=shift_hold_pr_curve,
             shift_pred_pr_curve=shift_pred_pr_curve,
+            ov_pred_pr_curve=ov_pred_pr_curve,
             bc_pred_pr_curve=bc_pred_pr_curve,
             long_short_pr_curve=long_short_pr_curve,
             frame_hz=self.frame_hz,
