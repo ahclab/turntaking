@@ -82,11 +82,11 @@ audio_cond:
     <<: *Encoder
     user_1: 
       module:
-        use_module: true
+        use_module: false
         <<: *AudioModule
     user_2: 
       module:
-        use_module: true
+        use_module: false
         <<: *AudioModule
   va_cond:
     use_module: true
@@ -98,7 +98,7 @@ audio_cond:
     <<: *AudioModule
 
 non_verbal_cond:
-  use_module: false
+  use_module: true
   user1_input: false
   user2_input: true
   gaze: 
@@ -117,7 +117,7 @@ non_verbal_cond:
       use_module: false
       <<: *NonVarbalModule
   pose: 
-    use_module: false
+    use_module: true
     pose_module:
       use_module: false
       <<: *NonVarbalModule

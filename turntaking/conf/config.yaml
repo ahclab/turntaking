@@ -7,9 +7,9 @@ info:
   debug: false
 
 train:
-  trial_count: 1
+  trial_count: 10
   seed: null
-  max_epochs: 1
+  max_epochs: 50
   patience: 3
   optimizer: "AdamW"
   verbose: False
@@ -18,7 +18,7 @@ train:
   learning_rate: 3.63e-4
 
 data:
-  datasets: "scope"
+  datasets: "noxi"
   type: "sliding"
   sample_rate: ${model.encoder.sample_rate}
   audio_mono: true
