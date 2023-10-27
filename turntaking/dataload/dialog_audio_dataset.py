@@ -445,101 +445,6 @@ class DialogAudioDataset(Dataset):
             del self.data[key]
 
 
-    # def _get_all(self):
-    #     # Initialize the dictionary to store data
-    #     self.data = {
-    #         "dataset_name": [],
-    #         "session": [],
-    #         "waveform": [],
-    #         "waveform_user1": [],
-    #         "waveform_user2": [],
-    #         "vad": [],
-    #         "label": [],
-    #         "vad_history": [],
-    #         "gaze_user1": [],
-    #         "au_user1": [],
-    #         "pose_user1": [],
-    #         "head_user1": [],
-    #         "gaze_user2": [],
-    #         "au_user2": [],
-    #         "pose_user2": [],
-    #         "head_user2": [],
-    #     }
-
-    #     def adjust_waveform_size(waveform):
-    #         audio_frame_num = int(self.sample_rate * all_vad_frames_num / self.vad_hz) - waveform.size(-1)
-    #         if audio_frame_num < 0:
-    #             return waveform[:, : int(self.sample_rate * all_vad_frames_num / self.vad_hz)]
-    #         elif audio_frame_num > 0:
-    #             padding = torch.zeros(1, audio_frame_num)
-    #             return torch.cat((waveform, padding), -1)
-    #         else:
-    #             return waveform
-
-    #     def adjust_multimodal_size(multimodal):
-    #         padding_shape = multimodal.size(-1)
-    #         multimodal_frame_num = all_vad_frames_num - multimodal.size(-2)
-    #         if multimodal_frame_num < 0:
-    #             return multimodal[:, : all_vad_frames_num, :]
-    #         elif multimodal_frame_num > 0:
-    #             padding = torch.zeros(1, multimodal_frame_num, padding_shape)
-    #             return torch.cat((multimodal, padding), -2)
-    #         else:
-    #             return multimodal
-
-    #     for i in tqdm(range(len(self.dataset["audio_path"]))):
-    #         # Load the audio file and corresponding multimodal data
-    #         b = self.dataset[i]
-    #         waveform, waveform_user1, waveform_user2 = self._load_waveform(b)
-    #         vad, vad_history = self._load_vad(b)
-    #         lookahead = torch.zeros((1, self.vad_horizon, 2))
-    #         label = self._extract_label(torch.cat((vad, lookahead), -2))
-    #         gaze_user1, au_user1, pose_user1, head_user1, gaze_user2, au_user2, pose_user2, head_user2 = self._load_multimodal(b)
-
-    #         # Shape the audio waveform and multimodal data
-    #         all_vad_frames_num = vad.size(1)
-
-    #         waveform = adjust_waveform_size(waveform)
-
-    #         is_noxi = b["dataset_name"] == "noxi"
-    #         if is_noxi:
-    #             waveform_user1 = adjust_waveform_size(waveform_user1)
-    #             waveform_user2 = adjust_waveform_size(waveform_user2)
-
-    #             gaze_user1 = adjust_multimodal_size(gaze_user1)
-    #             au_user1 = adjust_multimodal_size(au_user1)
-    #             pose_user1 = adjust_multimodal_size(pose_user1)
-    #             head_user1 = adjust_multimodal_size(head_user1)
-    #             gaze_user2 = adjust_multimodal_size(gaze_user2)
-    #             au_user2 = adjust_multimodal_size(au_user2)
-    #             pose_user2 = adjust_multimodal_size(pose_user2)
-    #             head_user2 = adjust_multimodal_size(head_user2)
-
-    #         # Append the data to the dictionary
-    #         self.data["dataset_name"].append(b["dataset_name"])
-    #         self.data["session"].append(b["session"])
-    #         self.data["waveform"].append(waveform)
-    #         self.data["vad"].append(vad)
-    #         self.data["label"].append(label)
-    #         self.data["vad_history"].append(vad_history)
-
-    #         if is_noxi:
-    #             self.data["waveform_user1"].append(waveform_user1)
-    #             self.data["waveform_user2"].append(waveform_user2)
-    #             self.data["gaze_user1"].append(gaze_user1)
-    #             self.data["au_user1"].append(au_user1)
-    #             self.data["pose_user1"].append(pose_user1)
-    #             self.data["head_user1"].append(head_user1)
-    #             self.data["gaze_user2"].append(gaze_user2)
-    #             self.data["au_user2"].append(au_user2)
-    #             self.data["pose_user2"].append(pose_user2)
-    #             self.data["head_user2"].append(head_user2)
-            
-    #     empty_keys = [key for key, value in self.data.items() if value == [] or (isinstance(value, list) and all(v is None for v in value))]
-    #     for key in empty_keys:
-    #         del self.data[key]
-
-
     def get_full_sample(self):
         ret = {}
 
@@ -584,40 +489,36 @@ class DialogAudioDataset(Dataset):
         start_audio_idx: int,
         end_audio_idx: int,
     ):
-        all_vad_frames = self.data["vad"][dset_idx]
+        data = self.data
+        all_vad_frames = data["vad"][dset_idx]
 
         if self.type == "independent":
-            target_label_value = self.data["label"][dset_idx][0, end_vad_idx - 1]
+            target_label_value = data["label"][dset_idx][0, end_vad_idx - 1]
             label_tensor = torch.tensor(target_label_value).unsqueeze(0).unsqueeze(0)
         else:
-            target_label_value = self.data["label"][dset_idx][0, end_vad_idx - 1].item()
+            target_label_value = data["label"][dset_idx][0, end_vad_idx - 1].item()
             label_tensor = torch.tensor([target_label_value]).unsqueeze(1)
 
         ret = {
-            "waveform": self.data["waveform"][dset_idx][
+            "waveform": data["waveform"][dset_idx][
                 :, start_audio_idx:end_audio_idx
             ],
-            "dataset_name": [self.data["dataset_name"][dset_idx]],
-            "session": [self.data["session"][dset_idx]],
+            "dataset_name": [data["dataset_name"][dset_idx]],
+            "session": [data["session"][dset_idx]],
             "label": label_tensor,
         }
 
         for key in ["waveform_user1", "waveform_user2"]:
-            if key in self.data:
-                ret[key] = self.data[key][dset_idx][
+            if key in data:
+                ret[key] = data[key][dset_idx][
                     :, start_audio_idx:end_audio_idx
                 ]
 
         if self.vad:
-            # if end_vad_idx + self.vad_horizon > all_vad_frames.size(1):
-            #     lookahead = torch.zeros((1, self.vad_horizon, 2))
-            #     all_vad_frames = torch.cat((all_vad_frames, lookahead), -2)
-
-            # ret["vad"] = all_vad_frames[:, start_vad_idx:end_vad_idx + self.vad_horizon, :]
             ret["vad"] = all_vad_frames[:, start_vad_idx:end_vad_idx, :]
 
             if self.vad_history:
-                ret["vad_history"] = self.data["vad_history"][dset_idx][
+                ret["vad_history"] = data["vad_history"][dset_idx][
                     :, start_vad_idx:end_vad_idx, :
                 ]
 
@@ -632,8 +533,8 @@ class DialogAudioDataset(Dataset):
                 "pose_user2",
                 "head_user2",
             ]:
-                if key in self.data:
-                    ret[key] = self.data[key][dset_idx][:, start_vad_idx:end_vad_idx, :]
+                if key in data:
+                    ret[key] = data[key][dset_idx][:, start_vad_idx:end_vad_idx, :]
 
         if self.flip_channels and idx % 2:
             ret["vad"] = torch.stack((ret["vad"][:, :, 1], ret["vad"][:, :, 0]), dim=-1)
@@ -746,16 +647,60 @@ def events_plot(batch, key=None, value=None, sample_rate=16000):
 
 if __name__ == "__main__":
     from turntaking.dataload.dialog_audio_dm import get_dialog_audio_datasets
+    from turntaking.vap_to_turntaking import TurnTakingEvents
 
     # # Switchboard Debug
     # # default
-    # print(f"###SWITCHBOARD###")
-    # dset_hf = get_dialog_audio_datasets(datasets=["switchboard"], split="val")
-    # dset = DialogAudioDataset(
-    #     dataset=dset_hf,
-    #     type="sliding",
-    #     vad_history=True,
-    # )
+    print(f"###SWITCHBOARD###")
+    dset_hf = get_dialog_audio_datasets(datasets="switchboard", split="test")
+    dset = DialogAudioDataset(
+        dataset=dset_hf,
+        type="sliding",
+        vad_hz=25,
+        vad_history=False,
+    )
+    max_idx = 0
+    for i in range(len(dset.data["vad"])):
+        vad_max_idx = dset.data["vad"][i].size(1) - int(
+            dset.audio_duration * dset.vad_hz
+        )
+        max_idx += vad_max_idx
+    print(f'time: {max_idx/dset.vad_hz/3600} [hour]')
+    eventer = TurnTakingEvents(
+        hs_kwargs=  dict(
+            post_onset_shift=1,
+            pre_offset_shift=1,
+            post_onset_hold=1,
+            pre_offset_hold=1,
+            non_shift_horizon=2,
+            metric_pad=0.05,
+            metric_dur=0.1,
+            metric_pre_label_dur=0.2,
+            metric_onset_dur=0.2),
+        bc_kwargs=dict(
+            max_duration_frames=1.0,
+            pre_silence_frames=1.0,
+            post_silence_frames=2.0,
+            min_duration_frames=0.2,
+            metric_dur_frames=0.2,
+            metric_pre_label_dur=0.5
+        ),
+        metric_kwargs=dict(
+            pad=0.05,
+            dur=0.1,
+            pre_label_dur=0.5,
+            onset_dur=0.2,
+            min_context=3.0
+        ),
+        frame_hz=25,
+    )
+    # print(dset.get_full_sample["vad"].shape)
+    events = eventer(dset.get_full_sample()["vad"], max_frame=None)
+
+    for k, v in events.items():
+        n = eventer.count_occurances(v)
+        print(f"{k}: {n}")
+    exit(1)
     # print(dset)
     # print(f"Datasets Size: {len(dset)}")
 

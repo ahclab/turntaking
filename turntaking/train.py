@@ -32,6 +32,7 @@ class Train():
         super().__init__()
         self.conf = conf
         self.model = Model(self.conf).to(self.conf["train"]["device"])
+        # self.model = torch.nn.DataParallel(self.model).to(self.conf["train"]["device"])
         self.dm = dm
         self.dm.change_frame_mode(False)
         self.output_path = output_path

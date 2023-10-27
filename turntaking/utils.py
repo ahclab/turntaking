@@ -419,10 +419,10 @@ def set_debug_mode(cfg_dict):
         cfg_dict["data"]["train_files"] = "turntaking/dataload/dataset/switchboard/files/debug_train.txt"
         cfg_dict["data"]["val_files"] = "turntaking/dataload/dataset/switchboard/files/debug_val.txt"
         cfg_dict["data"]["test_files"] = "turntaking/dataload/dataset/switchboard/files/debug_test.txt"
-    elif cfg_dict["data"]["datasets"] == "scope":
-        cfg_dict["data"]["train_files"] = "turntaking/dataload/dataset/scope/files/debug_train.txt"
-        cfg_dict["data"]["val_files"] = "turntaking/dataload/dataset/scope/files/debug_val.txt"
-        cfg_dict["data"]["test_files"] = "turntaking/dataload/dataset/scope/files/debug_test.txt"
+    elif cfg_dict["data"]["datasets"] == "eald":
+        cfg_dict["data"]["train_files"] = "turntaking/dataload/dataset/eald/files/debug_train.txt"
+        cfg_dict["data"]["val_files"] = "turntaking/dataload/dataset/eald/files/debug_val.txt"
+        cfg_dict["data"]["test_files"] = "turntaking/dataload/dataset/eald/files/debug_test.txt"
     cfg_dict["train"]["max_epochs"] = 1
     cfg_dict["train"]["checkpoint"] = 1
     cfg_dict["train"]["num_workers"] = 0

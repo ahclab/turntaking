@@ -5,7 +5,7 @@ from typing import List
 import datasets
 from datasets import Value, Sequence
 
-from turntaking.dataload.dataset.scope.utils import (
+from turntaking.dataload.dataset.eald.utils import (
     extract_dialog,
     extract_vad_list,
 )
@@ -17,12 +17,12 @@ from turntaking.dataload.utils import (
 
 logger = datasets.logging.get_logger(__name__)
 
-EXTRACTED_PATH = "/ahc/work2/kazuyo-oni/projects/data/scope"
+EXTRACTED_PATH = "/ahc/work2/kazuyo-oni/projects/data/eald"
 
 REL_AUDIO_PATH = join(
-    repo_root(), "dataload/dataset/scope/files/relative_audio_path.json"
+    repo_root(), "dataload/dataset/eald/files/relative_audio_path.json"
 )
-SPLIT_PATH = os.path.join(repo_root(), "dataload/dataset/scope/files")
+SPLIT_PATH = os.path.join(repo_root(), "dataload/dataset/eald/files")
 
 _HOMEPAGE = "https://aclanthology.org/L18-1462/"
 _DESCRIPTION = """
@@ -56,7 +56,7 @@ FEATURES = {
 }
 
 
-class ScopeConfig(datasets.BuilderConfig):
+class ealdConfig(datasets.BuilderConfig):
     def __init__(
         self,
         train_sessions=None,
@@ -86,13 +86,13 @@ class ScopeConfig(datasets.BuilderConfig):
         )
 
 
-class Scope(datasets.GeneratorBasedBuilder):
+class eald(datasets.GeneratorBasedBuilder):
     VERSION = datasets.Version("0.0.1")
     DEFAULT_CONFIG_NAME = "default"
     BUILDER_CONFIGS = [
-        ScopeConfig(
+        ealdConfig(
             name="default",
-            description="Scope",
+            description="eald",
         )
     ]
 

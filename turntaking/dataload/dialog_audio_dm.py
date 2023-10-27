@@ -18,7 +18,7 @@ from tqdm import tqdm
 from turntaking.dataload.dialog_audio_dataset import DialogAudioDataset
 from turntaking.dataload.dataset.switchboard import load_switchboard
 from turntaking.dataload.dataset.noxi import load_noxi
-from turntaking.dataload.dataset.scope import load_scope
+from turntaking.dataload.dataset.eald import load_eald
 from turntaking.dataload.utils import repo_root, OmegaConfArgs, load_config
 
 
@@ -48,9 +48,9 @@ def get_dialog_audio_datasets(
                 test_files=test_files,
             )
         )
-    elif datasets == "scope":
+    elif datasets == "eald":
         dsets.append(
-            load_scope(
+            load_eald(
                 split=split,
                 train_files=train_files,
                 val_files=val_files,
@@ -146,6 +146,52 @@ class DialogAudioDM(pl.LightningDataModule):
         self.undersampling = undersampling
         self.oversampling = oversampling
 
+        self.keys = [
+            "waveform",
+            "waveform_user1",
+            "waveform_user2",
+            "vad",
+            "vad_history",
+            "gaze_user1",
+            "au_user1",
+            "pose_user1",
+            "head_user1",
+            "gaze_user2",
+            "au_user2",
+            "pose_user2",
+            "head_user2",
+            "label",
+        ]
+        self.target_sizes = {
+            "waveform": self.audio_duration * self.sample_rate,
+            "waveform_user1": self.audio_duration * self.sample_rate,
+            "waveform_user2": self.audio_duration * self.sample_rate,
+            "vad": self.audio_duration * self.vad_hz,
+            "vad_history": self.audio_duration * self.vad_hz,
+            "gaze_user1": self.vad_hz * self.audio_duration,
+            "au_user1": self.vad_hz * self.audio_duration,
+            "head_user1": self.vad_hz * self.audio_duration,
+            "pose_user1": self.vad_hz * self.audio_duration,
+            "gaze_user2": self.vad_hz * self.audio_duration,
+            "au_user2": self.vad_hz * self.audio_duration,
+            "head_user2": self.vad_hz * self.audio_duration,
+            "pose_user2": self.vad_hz * self.audio_duration,
+            "label": len(self.bin_times) if self.label_type == "independent" else 1,
+        }
+        self.dimensions = {
+            "vad": -2,
+            "vad_history": -2,
+            "gaze_user1": -2,
+            "au_user1": -2,
+            "head_user1": -2,
+            "pose_user1": -2,
+            "gaze_user2": -2,
+            "au_user2": -2,
+            "head_user2": -2,
+            "pose_user2": -2,
+            "label": -1,
+        }
+
     def prepare_data(self):
         """
         loads the data over all splits.
@@ -233,72 +279,28 @@ class DialogAudioDM(pl.LightningDataModule):
             self.train_dset = self._dataset(get_dataset("train"), split="train")
             self.val_dset = self._dataset(get_dataset("val"), split="val")
             self.test_dset = self._dataset(get_dataset("test"), split="test")
+    
+    def _pad_tensor(self, tensor, target_size, dim=-1):
+        if tensor.size(dim) < target_size:
+            padding_size = target_size - tensor.size(dim)
+            padding = torch.zeros(
+                *tensor.size()[:dim], padding_size, *tensor.size()[dim + 1 :]
+            )
+            tensor = torch.cat((tensor, padding), dim)
+        elif tensor.size(dim) > target_size:
+            tensor = tensor.narrow(dim, 0, target_size)
+        return tensor
 
 
     def collate_fn(self, batch):
-        def pad_tensor(tensor, target_size, dim=-1):
-            if tensor.size(dim) < target_size:
-                padding_size = target_size - tensor.size(dim)
-                padding = torch.zeros(
-                    *tensor.size()[:dim], padding_size, *tensor.size()[dim + 1 :]
-                )
-                tensor = torch.cat((tensor, padding), dim)
-            elif tensor.size(dim) > target_size:
-                tensor = tensor.narrow(dim, 0, target_size)
-            return tensor
-
-        keys = [
-            "waveform",
-            "waveform_user1",
-            "waveform_user2",
-            "vad",
-            "vad_history",
-            "gaze_user1",
-            "au_user1",
-            "pose_user1",
-            "head_user1",
-            "gaze_user2",
-            "au_user2",
-            "pose_user2",
-            "head_user2",
-            "label",
-        ]
-        target_sizes = {
-            "waveform": self.audio_duration * self.sample_rate,
-            "waveform_user1": self.audio_duration * self.sample_rate,
-            "waveform_user2": self.audio_duration * self.sample_rate,
-            "vad": self.audio_duration * self.vad_hz,
-            "vad_history": self.audio_duration * self.vad_hz,
-            "gaze_user1": self.vad_hz * self.audio_duration,
-            "au_user1": self.vad_hz * self.audio_duration,
-            "head_user1": self.vad_hz * self.audio_duration,
-            "pose_user1": self.vad_hz * self.audio_duration,
-            "gaze_user2": self.vad_hz * self.audio_duration,
-            "au_user2": self.vad_hz * self.audio_duration,
-            "head_user2": self.vad_hz * self.audio_duration,
-            "pose_user2": self.vad_hz * self.audio_duration,
-            "label": len(self.bin_times) if self.label_type == "independent" else 1,
-        }
-        dimensions = {
-            "vad": -2,
-            "vad_history": -2,
-            "gaze_user1": -2,
-            "au_user1": -2,
-            "head_user1": -2,
-            "pose_user1": -2,
-            "gaze_user2": -2,
-            "au_user2": -2,
-            "head_user2": -2,
-            "pose_user2": -2,
-            "label": -1,
-        }
-        ret = {key: [] for key in keys}
+        ret = {key: [] for key in self.keys}
 
         for b in batch:
-            for key in keys:
+            for key in self.keys:
                 if key in b:
                     ret[key].append(
-                        pad_tensor(b[key], target_sizes[key], dimensions.get(key, -1))
+                        # self._pad_tensor(b[key], self.target_sizes[key], self.dimensions.get(key, -1))
+                        b[key]
                     )
 
         ret = {key: torch.cat(value) for key, value in ret.items() if len(value) > 0}

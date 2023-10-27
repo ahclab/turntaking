@@ -7,6 +7,8 @@ import time
 import warnings
 from os.path import join, dirname
 from pprint import pprint
+import torch.nn as nn
+from einops.layers.torch import Rearrange
 
 import hydra
 import pandas as pd
@@ -27,6 +29,45 @@ from turntaking.dataload import DialogAudioDM
 everything_deterministic()
 warnings.simplefilter("ignore")
 
+class VAPHead(nn.Module):
+    def __init__(self, conf):
+        super().__init__()
+        self.type = conf["type"]
+
+        self.rea_t = Rearrange("b t d -> b d t")
+        self.rea_d = Rearrange("b d t -> b t d")
+        self.one_frame_head = nn.Linear(conf["t_dim"], 1)
+
+        if self.type == "comparative":
+            self.projection_head = nn.Linear(conf["d_dim"], 1)
+            self.output_dim = 1
+        else:
+            self.total_bins = 2 * len(conf["bin_times"])
+            if self.type == "independent":
+                self.projection_head = nn.Sequential(
+                    nn.Linear(conf["d_dim"], self.total_bins),
+                    Rearrange("... (c f) -> ... c f", c=2, f=self.total_bins // 2),
+                )
+                self.output_dim = (2, conf["bin_times"])
+            else:
+                self.n_classes = 2**self.total_bins
+                self.projection_head = nn.Linear(conf["d_dim"], self.n_classes)
+                self.output_dim = self.n_classes
+
+    def __repr__(self):
+        s = "VAPHead\n"
+        s += f"  type: {self.type}"
+        s += f"  output: {self.output_dim}"
+        return super().__repr__()
+
+    def forward(self, x):
+        # x = x.contiguous().view(x.size(0), -1).unsqueeze(1) # old
+        x = self.rea_t(x)
+        x = self.one_frame_head(x)
+        x = self.rea_d(x)
+        x = self.projection_head(x)
+        return x
+
 class Finetune():
     def __init__(self, conf, dm, output_path, model_path, verbose=True) -> None:
         super().__init__()
@@ -36,14 +77,25 @@ class Finetune():
         self.model.load_state_dict(
             torch.load(model_path, map_location=conf["train"]["device"])
         )
+        for param in self.model.parameters():
+            param.requires_grad = False
+        for param in self.model.net.vap_head.parameters():
+            param.requires_grad = True
+        for param in self.model.net.main_module.parameters():
+            param.requires_grad = True
+        # vap_head = VAPHead(conf["model"]["vap"]).to(
+        #     conf["train"]["device"]
+        # )
+        # self.model.net.vap_head = vap_head
+
         self.dm = dm
         self.dm.change_frame_mode(False)
         self.output_path = output_path
 
         self.optimizer = self._create_optimizer()
         # self.scheduler = LambdaLR(self.optimizer, lr_lambda=lambda epoch: 0.95**epoch)
-        # self.scheduler = CosineAnnealingLR(self.optimizer, T_max=self.conf["train"]["max_epochs"], eta_min=0)
-        self.scheduler = CosineLRScheduler(self.optimizer, t_initial=self.conf["train"]["max_epochs"], lr_min=0, warmup_t=3, warmup_lr_init=5e-5, warmup_prefix=True)
+        self.scheduler = CosineAnnealingLR(self.optimizer, T_max=self.conf["train"]["max_epochs"], eta_min=0)
+        # self.scheduler = CosineLRScheduler(self.optimizer, t_initial=self.conf["train"]["max_epochs"], lr_min=0, warmup_t=3, warmup_lr_init=5e-5, warmup_prefix=True)
         
 
         self.early_stopping = EarlyStopping(patience=self.conf["train"]["patience"], verbose=self.conf["train"]["verbose"], path=self.output_path)
@@ -108,6 +160,8 @@ class Finetune():
     def _create_optimizer(self):
         if self.conf["train"]["optimizer"] == "AdamW":
             return torch.optim.AdamW(self.model.parameters(), lr=self.conf["train"]["learning_rate"])
+        elif self.conf["train"]["optimizer"] == "SGD":
+            return torch.optim.SGD(self.model.parameters(), lr=self.conf["train"]["learning_rate"])
         else:
             print(f"Error optimizer")
             exit(1)
@@ -166,30 +220,44 @@ def main(cfg: DictConfig) -> None:
     
     cfg_dict = dict(OmegaConf.to_object(cfg))
     debug = cfg_dict["info"]["debug"]
+    device = cfg_dict["train"]["device"]
 
     model_dir_path = input("Please enter the path of the model file dir.: ")
-    data_id = input(
-        "[NoXi Database]\n"
-        "0: Nottingham\n"
-        "1: Augsburg\n"
-        "2: Paris\n"
-        "[Scope]\n"
-        "0: Elderly - Caretaker\n"
-        "1: Elderly - Scychologist\n"
-        "2: Elderly - Student\n"
-        "Select the data set number to be used for fine tuning.: "
-        )
-
     with open(join(model_dir_path, "log.json")) as f:
         cfg_dict = json.load(f)
         # cfg_dict["train"]["max_epochs"] = 1
-        # cfg_dict["train"]["learning_rate"] = 1e-4
+        cfg_dict["train"]["learning_rate"] = 1e-4
+        # cfg_dict["train"]["optimizer"] = "SGD"
         if debug:
             set_debug_mode(cfg_dict)
     
-    cfg_dict["data"]["train_files"] = f"turntaking/dataload/dataset/{cfg_dict['data']['datasets']}/files/train_{data_id}.txt"
-    cfg_dict["data"]["val_files"] = f"turntaking/dataload/dataset/{cfg_dict['data']['datasets']}/files/val_{data_id}.txt"
-    cfg_dict["data"]["test_files"] = f"turntaking/dataload/dataset/{cfg_dict['data']['datasets']}/files/test_{data_id}.txt"
+    datasets = input("Please enter the model datasets: ")
+    if datasets not in ["noxi", "eald", "switchboard"]:
+        print(f"Error: {datasets} is not defined.")
+        exit(1)
+    cfg_dict['data']['datasets'] = datasets
+
+    if datasets == "switchboard":
+        cfg_dict["data"]["train_files"] = f"turntaking/dataload/dataset/{datasets}/files/train.txt"
+        cfg_dict["data"]["val_files"] = f"turntaking/dataload/dataset/{datasets}/files/val.txt"
+        cfg_dict["data"]["test_files"] = f"turntaking/dataload/dataset/{datasets}/files/test.txt"
+    else:
+        data_id = input(
+            "[NoXi Database]\n"
+            "0: Nottingham\n"
+            "1: Augsburg\n"
+            "2: Paris\n"
+            "[eald]\n"
+            "0: Elderly - Caretaker\n"
+            "1: Elderly - Scychologist\n"
+            "2: Elderly - Student\n"
+            "Select the data set number to be used for fine tuning.: "
+            )
+
+    
+        cfg_dict["data"]["train_files"] = f"turntaking/dataload/dataset/{datasets}/files/train_{data_id}.txt"
+        cfg_dict["data"]["val_files"] = f"turntaking/dataload/dataset/{datasets}/files/val_{data_id}.txt"
+        cfg_dict["data"]["test_files"] = f"turntaking/dataload/dataset/{datasets}/files/test_{data_id}.txt"
 
     dm = DialogAudioDM(**cfg_dict["data"])
     dm.setup(None)
@@ -212,7 +280,7 @@ def main(cfg: DictConfig) -> None:
         model = finetune.train()
 
         ### Test ###
-        test = Test(cfg_dict, dm, output_path)
+        test = Test(cfg_dict, dm, output_path, True)
         score, turn_taking_probs, probs, events = test.test()
         write_json(score, join(output_dir, "score.json"))
 

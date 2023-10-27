@@ -26,9 +26,11 @@ warnings.simplefilter("ignore")
 
 
 class Test:
-    def __init__(self, conf, dm, model_path):
+    def __init__(self, conf, dm, model_path, find_threshold = False):
         self.conf = conf
         self.output_dir = dirname(model_path)
+
+        self.find_threshold = find_threshold
 
         self.dm = dm
         self.dm.change_frame_mode(True)
@@ -49,6 +51,10 @@ class Test:
             param.requires_grad = False
 
         if exists(join(dirname(model_path), "thresholds.json")):
+            if self.find_threshold:
+                self.model = self._find_threshold()
+                return
+
             with open(join(dirname(model_path), "thresholds.json")) as f:
                 thresholds_dict = json.load(f)
                 print(

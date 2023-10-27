@@ -196,7 +196,7 @@ def remove_words_from_dialog(dialog):
 if __name__ == "__main__":
     from os import listdir
 
-    extracted_path = "/ahc/work2/kazuyo-oni/projects/data/scope"
+    extracted_path = "/ahc/work2/kazuyo-oni/projects/data/eald"
     session = "student_01"
 
     session = str(session)

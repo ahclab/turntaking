@@ -71,12 +71,12 @@ audio_cond:
   use_module: true
   encoder:
     <<: *Encoder
-    use_module: false
+    use_module: true
     module:
       use_module: false
       <<: *AudioModule
   encoder_separated_audio:
-    use_module: true
+    use_module: false
     user1_input: false
     user2_input: true
     <<: *Encoder
@@ -98,8 +98,8 @@ audio_cond:
     <<: *AudioModule
 
 non_verbal_cond:
-  use_module: true
-  user1_input: false
+  use_module: false
+  user1_input: true
   user2_input: true
   gaze: 
     use_module: true 

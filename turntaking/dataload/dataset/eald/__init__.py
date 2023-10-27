@@ -2,15 +2,15 @@ from os.path import join
 from datasets import load_dataset
 from turntaking.dataload.utils import repo_root, read_txt
 
-AUDIO_DIR = "/ahc/work2/kazuyo-oni/projects/data/scope"
+AUDIO_DIR = "/ahc/work2/kazuyo-oni/projects/data/eald"
 
-DATASET_SCRIPT = join(repo_root(), "dataload/dataset/scope/scope.py")
+DATASET_SCRIPT = join(repo_root(), "dataload/dataset/eald/eald.py")
 AUDIO_EXT = ".wav"
 
-SPLIT_PATH = join(repo_root(), "dataload/dataset/scope/files")
+SPLIT_PATH = join(repo_root(), "dataload/dataset/eald/files")
 
 
-def load_scope(
+def load_eald(
     split="train",
     audio_root=AUDIO_DIR,
     audio_ext=AUDIO_EXT,
@@ -60,7 +60,7 @@ def load_scope(
         split = "validation"
 
     def process_and_add_name(examples):
-        examples["dataset_name"] = "scope"
+        examples["dataset_name"] = "eald"
         if audio_root is not None:
             examples["audio_path"] = join(
                 audio_root, examples["audio_path"] + audio_ext

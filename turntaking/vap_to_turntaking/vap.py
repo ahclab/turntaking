@@ -474,8 +474,6 @@ class Probabilites:
         w = torch.where(both)
         # Re-Normalize and compare next-active
         sum = act_probs[w][..., 0] + act_probs[w][..., 1]
-        #pprint(sum)
-
         p_a[w] = act_probs[w][..., 0] / sum
         p_b[w] = act_probs[w][..., 1] / sum
         return p_a, p_b
@@ -561,6 +559,10 @@ class VAP(nn.Module, Probabilites):
         return act_probs.sum(dim=-2)  # sum over classes
 
     def probs_overlap(self, probs):
+        """
+        tensor([ 29,  93,  61, 125,  31,  95,  63, 127])
+        tensor([209, 213, 211, 215, 241, 245, 243, 247])
+        """
         ap = probs[..., self.emb.ov_prediction[0]].sum(-1)
         bp = probs[..., self.emb.ov_prediction[1]].sum(-1)
         return torch.stack((ap, bp), dim=-1)

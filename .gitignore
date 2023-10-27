@@ -157,3 +157,6 @@ output/
 ._*
 .ruff_cache
 output_graph/
+turntaking/realtime_sim.py
+turntaking/test_other_model.py
+turntaking/corpus_analysis.py
