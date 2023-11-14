@@ -3,7 +3,6 @@ import torch.nn as nn
 
 from turntaking.models.transformer import Transformer
 from turntaking.models.conformer import Conformer
-from turntaking.models.squeezeformer import Squeezeformer
 from turntaking.models.cnn import CNN
 
 
@@ -68,23 +67,6 @@ class AR(nn.Module):
                 dropout=self.dropout,
                 convolution_first=model_kwargs["Conformer"]["convolution_first"],
                 use_pos_emb=model_kwargs["Conformer"]["use_pos_emb"],
-            )
-        elif ar == "squeezeformer":
-            ret = Squeezeformer(
-                input_size=self.dim,
-                encoder_dim=self.dim,
-                num_heads=self.num_layers,
-                dropout=self.dropout,
-                feed_forward_expansion_factor=model_kwargs["Squeezeformer"]["dff_k"],
-                conv_kernel_size=model_kwargs["Squeezeformer"]["conv_kernel_size"],
-                conv_expansion_factor=model_kwargs["Squeezeformer"][
-                    "conv_expansion_factor"
-                ],
-                reduce_layer_index=model_kwargs["Squeezeformer"]["reduce_layer_index"],
-                recover_layer_index=model_kwargs["Squeezeformer"][
-                    "recover_layer_index"
-                ],
-                half_step_residual=model_kwargs["Squeezeformer"]["half_step_residual"],
             )
         else:
             print(f"Autoregressive Error: {ret}")

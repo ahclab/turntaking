@@ -42,17 +42,9 @@ model_kwargs: &model_kwargs
     use_pos_emb: false  # false == AliBI
     convolution_first: false
     conv_kernel_size: 3
-  Squeezeformer:
-    num_heads: 4
-    dff_k: 4
-    conv_expansion_factor: 2
-    reduce_layer_index: 7
-    recover_layer_index: 15
-    conv_kernel_size: 3
-    half_step_residual: false
 
 audio_module: &AudioModule
-  type: 'transformer' #transformer, cnn, lstm, gru, conformer, squeezeformer
+  type: 'transformer' #transformer, cnn, lstm, gru, conformer
   input_size: 256
   num_layers: 2
   dropout: 0.4
@@ -60,7 +52,7 @@ audio_module: &AudioModule
     <<: *model_kwargs
 
 non_verbal_module: &NonVarbalModule
-  type: 'transformer' #transformer, cnn, lstm, gru, conformer, squeezeformer
+  type: 'transformer' #transformer, cnn, lstm, gru, conformer
   input_size: 64
   num_layers: 2
   dropout: 0.4
@@ -123,7 +115,7 @@ non_verbal_cond:
       <<: *NonVarbalModule
   non_verbal_module:
     use_module: true
-    type: 'transformer' #transformer, cnn, lstm, gru, conformer, squeezeformer
+    type: 'transformer' #transformer, cnn, lstm, gru, conformer
     input_size: null
     num_layers: 2
     dropout: 0.4
@@ -135,7 +127,7 @@ non_verbal_cond:
 
 main_module:
   use_module: true
-  type: 'transformer' #transformer, cnn, lstm, gru, conformer, squeezeformer
+  type: 'transformer' #transformer, cnn, lstm, gru, conformer
   input_size: null
   num_layers: 2
   dropout: 0.4

@@ -7,7 +7,7 @@ info:
   debug: false
 
 train:
-  trial_count: 10
+  trial_count: 1
   seed: null
   max_epochs: 50
   patience: 3
