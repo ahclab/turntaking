@@ -22,7 +22,7 @@ model_kwargs: &model_kwargs
     batch_first: True
     bias: True
   LSTM:
-    dff_k: 1
+    dff_k: 3
     batch_first: True
   CNN: 
     kernel: 3

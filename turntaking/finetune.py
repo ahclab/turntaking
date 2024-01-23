@@ -247,6 +247,7 @@ def main(cfg: DictConfig) -> None:
             "0: Nottingham\n"
             "1: Augsburg\n"
             "2: Paris\n"
+            "3: Nara\n"
             "[eald]\n"
             "0: Elderly - Caretaker\n"
             "1: Elderly - Scychologist\n"

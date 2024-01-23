@@ -82,7 +82,6 @@ class AudioCondition(nn.Module):
                 if not isinstance(self.audio_module, nn.Identity)
                 else self.audio_module(z)
             )
-
         return z
 
 
@@ -316,31 +315,46 @@ class Model(pl.LightningModule):
     def __init__(self, conf) -> None:
         super().__init__()
         self.conf = conf
-        self.conf["model"]["vap"]["t_dim"] = (
+        self.conf["model"]["vap"]["t_dim"] = int(
             self.conf["data"]["vad_hz"] * self.conf["data"]["audio_duration"]
         )
-        self.conf["model"]["non_verbal_cond"]["t_dim"] = (
+        self.conf["model"]["non_verbal_cond"]["t_dim"] = int(
             self.conf["data"]["vad_hz"] * self.conf["data"]["audio_duration"]
         )
-        if (
-            self.conf["model"]["audio_cond"]["use_module"]
-            & self.conf["model"]["non_verbal_cond"]["use_module"]
-        ):
-            self.conf["model"]["vap"]["d_dim"] = (
-                self.conf["model"]["audio_cond"]["audio_module"]["input_size"]
-                + self.conf["model"]["non_verbal_cond"]["linear"]["output_size"]
-            )
+
+        dff_k = {}
+        dff_k["lstm"] = self.conf["model"]["audio_cond"]["audio_module"]["model_kwargs"]["LSTM"]["dff_k"]
+        dff_k["gru"] = self.conf["model"]["audio_cond"]["audio_module"]["model_kwargs"]["GRU"]["dff_k"]
+
+        # ここのコードは不完全である。モデルの構成によっては次元が自動的に揃わない可能性あり。
+        # 両方のモジュールが使用される場合
+        if self.conf["model"]["audio_cond"]["use_module"] and self.conf["model"]["non_verbal_cond"]["use_module"]:
+            # audio_condのtypeがlstmまたはgruの場合
+            if self.conf["model"]["audio_cond"]["audio_module"]["type"] in ["lstm", "gru"]:
+                self.conf["model"]["vap"]["d_dim"] = self.conf["model"]["audio_cond"]["audio_module"]["input_size"] * dff_k[self.conf["model"]["audio_cond"]["audio_module"]["type"]]
+            elif self.conf["model"]["audio_cond"]["audio_module"]["type"] in ["cnn"]:
+                self.conf["model"]["vap"]["d_dim"] = 64
+                self.conf["model"]["vap"]["t_dim"] = 1
+            else:
+                self.conf["model"]["vap"]["d_dim"] = self.conf["model"]["audio_cond"]["audio_module"]["input_size"] + self.conf["model"]["non_verbal_cond"]["linear"]["output_size"]
+        
+        # audio_condのみが使用される場合
         elif self.conf["model"]["audio_cond"]["use_module"]:
-            self.conf["model"]["vap"]["d_dim"] = self.conf["model"]["audio_cond"][
-                "audio_module"
-            ]["input_size"]
+            # audio_condのtypeがlstmまたはgruの場合
+            if self.conf["model"]["audio_cond"]["audio_module"]["type"] in ["lstm", "gru"]:
+                self.conf["model"]["vap"]["d_dim"] = self.conf["model"]["audio_cond"]["audio_module"]["input_size"] * dff_k[self.conf["model"]["audio_cond"]["audio_module"]["type"]]
+            elif self.conf["model"]["audio_cond"]["audio_module"]["type"] in ["cnn"]:
+                self.conf["model"]["vap"]["d_dim"] = 64
+                self.conf["model"]["vap"]["t_dim"] = 1
+            else:
+                self.conf["model"]["vap"]["d_dim"] = self.conf["model"]["audio_cond"]["audio_module"]["input_size"]
+        # non_verbal_condのみが使用される場合
         elif self.conf["model"]["non_verbal_cond"]["use_module"]:
-            self.conf["model"]["vap"]["d_dim"] = self.conf["model"]["non_verbal_cond"][
-                "linear"
-            ]["output_size"]
-        self.conf["model"]["main_module"]["input_size"] = self.conf["model"]["vap"][
-            "d_dim"
-        ]
+            self.conf["model"]["vap"]["d_dim"] = self.conf["model"]["non_verbal_cond"]["linear"]["output_size"]
+
+        # main_moduleのinput_sizeを設定
+        self.conf["model"]["main_module"]["input_size"] = self.conf["model"]["vap"]["d_dim"]
+
         self.frame_hz = self.conf["model"]["encoder"]["frame_hz"]
 
         # Network
@@ -368,10 +382,10 @@ class Model(pl.LightningModule):
 
     @property
     def model_summary(self):
-        frame_audio = (
+        frame_audio = int(
             self.conf["data"]["sample_rate"] * self.conf["data"]["audio_duration"]
         )
-        frame_vad = self.conf["data"]["vad_hz"] * self.conf["data"]["audio_duration"]
+        frame_vad = int(self.conf["data"]["vad_hz"] * self.conf["data"]["audio_duration"])
         inputs = {
             "waveform": torch.randn(self.conf["data"]["batch_size"], frame_audio),
             "va": torch.randn(self.conf["data"]["batch_size"], frame_vad, 2),
@@ -404,20 +418,28 @@ class Model(pl.LightningModule):
 
     @property
     def inference_speed(self):
+        frame_audio = int(
+            self.conf["data"]["sample_rate"] * self.conf["data"]["audio_duration"]
+        )
+        frame_vad = int(self.conf["data"]["vad_hz"] * self.conf["data"]["audio_duration"])
         inputs = {
-            "waveform": torch.randn(1, 160000),
-            "va": torch.randn(1, 250, 2),
-            "waveform_user1": torch.randn(1, 160000),
-            "waveform_user2": torch.randn(1, 160000),
-            "va_history": torch.randn(1, 250, 5),
-            "gaze_user1": torch.randn(1, 250, 3),
-            "au_user1": torch.randn(1, 250, 18),
-            "pose_user1": torch.randn(1, 250, 21),
-            "head_user1": torch.randn(1, 250, 4),
-            "gaze_user2": torch.randn(1, 250, 3),
-            "au_user2": torch.randn(1, 250, 18),
-            "pose_user2": torch.randn(1, 250, 21),
-            "head_user2": torch.randn(1, 250, 4),
+            "waveform": torch.randn(self.conf["data"]["batch_size"], frame_audio),
+            "va": torch.randn(self.conf["data"]["batch_size"], frame_vad, 2),
+            "waveform_user1": torch.randn(
+                self.conf["data"]["batch_size"], frame_audio
+            ),
+            "waveform_user2": torch.randn(
+                self.conf["data"]["batch_size"], frame_audio
+            ),
+            "va_history": torch.randn(self.conf["data"]["batch_size"], frame_vad, 5),
+            "gaze_user1": torch.randn(self.conf["data"]["batch_size"], frame_vad, 3),
+            "au_user1": torch.randn(self.conf["data"]["batch_size"], frame_vad, 18),
+            "pose_user1": torch.randn(self.conf["data"]["batch_size"], frame_vad, 21),
+            "head_user1": torch.randn(self.conf["data"]["batch_size"], frame_vad, 4),
+            "gaze_user2": torch.randn(self.conf["data"]["batch_size"], frame_vad, 3),
+            "au_user2": torch.randn(self.conf["data"]["batch_size"], frame_vad, 18),
+            "pose_user2": torch.randn(self.conf["data"]["batch_size"], frame_vad, 21),
+            "head_user2": torch.randn(self.conf["data"]["batch_size"], frame_vad, 4),
         }
         inputs = to_device(inputs, self.conf["train"]["device"])
 

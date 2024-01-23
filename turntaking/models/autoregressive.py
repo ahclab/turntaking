@@ -82,12 +82,13 @@ class AR(nn.Module):
                 x, attn = x
                 ret["attn"] = attn
             ret["z"] = x
-        elif self.ar_type == ["conformer", "squeezeformer"]:
+        elif self.ar_type == "conformer":
             x, lengths = self.ar(x, lengths)
             ret["z"] = x
             ret["lengths"] = lengths
         else:
             x, h = self.ar(x)
+            # print(x.shape)
             ret["z"] = x
             ret["h"] = x
         return ret

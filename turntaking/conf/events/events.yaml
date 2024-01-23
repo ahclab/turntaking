@@ -1,6 +1,6 @@
 metric:
   pad: 0.05
-  dur: 0.1
+  dur: 0.1 
   pre_label_dur: 0.5
   onset_dur: 0.2
   min_context: 3.0

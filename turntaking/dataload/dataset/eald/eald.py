@@ -18,7 +18,6 @@ from turntaking.dataload.utils import (
 logger = datasets.logging.get_logger(__name__)
 
 EXTRACTED_PATH = "/ahc/work2/kazuyo-oni/projects/data/eald"
-
 REL_AUDIO_PATH = join(
     repo_root(), "dataload/dataset/eald/files/relative_audio_path.json"
 )
@@ -43,7 +42,6 @@ _CITATION = """
         url = "https://aclanthology.org/L18-1462",
     }
 """
-
 
 FEATURES = {
     "session": Value("string"),

@@ -1,6 +1,7 @@
 # coding: UTF-8
 import datetime
 import json
+import argparse
 import os
 import random
 import time
@@ -32,6 +33,14 @@ class Train():
         super().__init__()
         self.conf = conf
         self.model = Model(self.conf).to(self.conf["train"]["device"])
+
+        if verbose == True:
+            self.model.model_summary
+            mean, var = self.model.inference_speed
+            print(f"inference speed: {mean}({var})")
+            # print(self.model)
+            exit(1)
+        
         # self.model = torch.nn.DataParallel(self.model).to(self.conf["train"]["device"])
         self.dm = dm
         self.dm.change_frame_mode(False)
@@ -45,13 +54,6 @@ class Train():
 
         self.early_stopping = EarlyStopping(patience=self.conf["train"]["patience"], verbose=self.conf["train"]["verbose"], path=self.output_path)
         self.checkpoint = self._create_checkpoints()
-
-        if verbose == True:
-            self.model.model_summary
-            # mean, var = self.model.inference_speed
-            # print(f"inference speed: {mean}({var})")
-            # print(self.model)
-            # exit(1)
 
     def train(self):
         self.model.net.train()
@@ -165,6 +167,9 @@ def main(cfg: DictConfig) -> None:
 
     if cfg_dict["info"]["debug"]:
         set_debug_mode(cfg_dict)
+        cfg_dict["info"]["dir_name"] = "debug"
+    
+    # train = Train(cfg_dict, None, None, True)
 
     dm = DialogAudioDM(**cfg_dict["data"])
     dm.setup(None)
@@ -176,7 +181,11 @@ def main(cfg: DictConfig) -> None:
     # Run
     for i in range(cfg_dict["train"]["trial_count"]):
         ### Preparation ###
-        output_dir = os.path.join(repo_root(), "output", d, id, str(i).zfill(2))
+        if cfg_dict["info"]["dir_name"] == None:
+            output_dir = os.path.join(repo_root(), "output", d, id, str(i).zfill(2))
+        else:
+            output_dir = os.path.join(repo_root(), "output", cfg_dict["info"]["dir_name"], str(i).zfill(2))
+        # output_dir = os.path.join(repo_root(), "output", d, id, str(i).zfill(2))
         output_path = os.path.join(output_dir, "model.pt")
         os.makedirs(output_dir, exist_ok=True)
         set_seed(i)
@@ -195,7 +204,10 @@ def main(cfg: DictConfig) -> None:
 
         score_json_path.append(join(output_dir, "score.json"))
 
-    output_dir = os.path.join(repo_root(), "output", d, id)
+    if cfg_dict["info"]["dir_name"] == None:
+        output_dir = os.path.join(repo_root(), "output", d, id)
+    else:
+        output_dir = os.path.join(repo_root(), "output", cfg_dict["info"]["dir_name"])
     df = compile_scores(score_json_path, output_dir)
     print("-" * 60)
     print(f"Output Final Score -> {join(output_dir, 'final_score.csv')}")

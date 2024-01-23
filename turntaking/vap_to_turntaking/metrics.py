@@ -127,39 +127,38 @@ class TurnTakingMetrics(Metric):
         long_short_pr_curve=False,
         frame_hz=100,
         dist_sync_on_step=False,
+        seed=42
     ):
         # call `self.add_state`for every internal state that is needed for the metrics computations
         # dist_reduce_fx indicates the function that should be used to reduce
         # state from multiple processes
         super().__init__(dist_sync_on_step=dist_sync_on_step)
+        self.seed = seed
 
         # Metrics
         # self.f1: class to provide f1-weighted as well as other stats tp,fp,support, etc...
         self.hs = F1_Hold_Shift(threshold=threshold_shift_hold)
-        self.predict_shift = F1Score(
-            threshold=threshold_pred_shift,
-            num_classes=2,
-            multiclass=True,
-            average="weighted",
-        )
-        self.predict_ov = F1Score(
-            threshold=threshold_pred_ov,
-            num_classes=2,
-            multiclass=True,
-            average="weighted",
-        )
-        self.short_long = F1Score(
-            threshold=threshold_short_long,
-            num_classes=2,
-            multiclass=True,
-            average="weighted",
-        )
-        self.predict_backchannel = F1Score(
-            threshold=threshold_bc_pred,
-            num_classes=2,
-            multiclass=True,
-            average="weighted",
-        )
+
+        def create_f1_score(threshold, num_classes=2, multiclass=True, average="weighted"):
+            return F1Score(
+                threshold=threshold,
+                num_classes=num_classes,
+                multiclass=multiclass,
+                average=average
+            )
+
+        self.predict_shift = create_f1_score(threshold_pred_shift)
+        self.predict_shift_0 = create_f1_score(threshold_pred_shift)
+        self.predict_shift_1 = create_f1_score(threshold_pred_shift)
+        self.predict_ov = create_f1_score(threshold_pred_ov)
+        self.predict_ov_0 = create_f1_score(threshold_pred_ov)
+        self.predict_ov_1 = create_f1_score(threshold_pred_ov)
+        self.short_long = create_f1_score(threshold_short_long)
+        self.short_long_0 = create_f1_score(threshold_short_long)
+        self.short_long_1 = create_f1_score(threshold_short_long)
+        self.predict_backchannel = create_f1_score(threshold_bc_pred)
+        self.predict_backchannel_0 = create_f1_score(threshold_bc_pred)
+        self.predict_backchannel_1 = create_f1_score(threshold_bc_pred)
 
         self.pr_curve_shift_hold = shift_hold_pr_curve
         if self.pr_curve_shift_hold:
@@ -190,7 +189,15 @@ class TurnTakingMetrics(Metric):
             bc_kwargs=bc_kwargs,
             metric_kwargs=metric_kwargs,
             frame_hz=frame_hz,
+            seed = self.seed
         )
+        
+    def update_predictions(self, probs, labels, predictor):
+        """
+        Update the given predictor with probabilities and labels.
+        """
+        if probs:
+            predictor.update(torch.cat(probs), torch.cat(labels).long())
 
     @torch.no_grad()
     def extract_events(self, va, max_frame=None):
@@ -208,168 +215,215 @@ class TurnTakingMetrics(Metric):
             self.shift_hold_pr.update(self.hs.probs, self.hs.labels)
 
     def update_short_long(self, p, short, long):
-        """
-        The given speaker in short/long is the one who initiated an onset.
+        def process_events(event, prob, label):
+            probs_dim, labels_dim = [], []
+            if event.sum() > 0:
+                w = torch.where(event)
+                p_event = prob[w]
+                probs_dim.append(p_event)
+                labels_dim.append(torch.full_like(p_event, label))
+            return probs_dim, labels_dim
 
-        Use the backchannel (prediction) prob to recognize short utterance.
+        # Split pos and neg into two dimensions
+        short_0, short_1 = short.clone(), short.clone()
+        short_0[:, :, 1] = 0
+        short_1[:, :, 0] = 0
+        long_0, long_1 = long.clone(), long.clone()
+        long_0[:, :, 1] = 0
+        long_1[:, :, 0] = 0
 
-        event -> label
-        short -> 1
-        long -> 0
-        """
+        # Process events
+        pos_probs, pos_labels = process_events(short, p, 1)
+        neg_probs, neg_labels = process_events(long, p, 0)
+        probs = pos_probs + neg_probs
+        labels = pos_labels + neg_labels
 
-        probs, labels = [], []
+        # Process events for pos_0 and neg_0
+        pos_probs_0, pos_labels_0 = process_events(short_0, p, 1)
+        neg_probs_0, neg_labels_0 = process_events(long_0, p, 0)
+        probs_0 = pos_probs_0 + neg_probs_0
+        labels_0 = pos_labels_0 + neg_labels_0
 
-        # At the onset of a SHORT utterance the probability associated
-        # with that person being the next speaker should be low -> 0
-        if short.sum() > 0:
-            w = torch.where(short)
-            p_short = p[w]
-            probs.append(p_short)
-            # labels.append(torch.zeros_like(p_short))
-            labels.append(torch.ones_like(p_short))
+        # Process events for pos_1 and neg_1
+        pos_probs_1, pos_labels_1 = process_events(short_1, p, 1)
+        neg_probs_1, neg_labels_1 = process_events(long_1, p, 0)
+        probs_1 = pos_probs_1 + neg_probs_1
+        labels_1 = pos_labels_1 + neg_labels_1
 
-        # At the onset of a LONG utterance the probability associated
-        # with that person being the next speaker should be high -> 1
-        if long.sum() > 0:
-            w = torch.where(long)
-            p_long = p[w]
-            probs.append(p_long)
-            #labels.append(torch.ones_like(p_long))
-            labels.append(torch.zeros_like(p_long))
+        # Concatenate and update predictions
+        if probs:
+            self.update_predictions(probs, labels, self.short_long)
+            self.update_predictions(probs_0, labels_0, self.short_long_0)
+            self.update_predictions(probs_1, labels_1, self.short_long_1)
 
-        if len(probs) > 0:
-            probs = torch.cat(probs)
-            labels = torch.cat(labels).long()
-            #probs =  torch.ones_like(probs, dtype=torch.long)
-            #pprint(probs)
-            #pprint(labels)
-            self.short_long.update(probs, labels)
+            if self.pr_curve_shift_pred:
+                self.long_short_pr.update(torch.cat(probs), torch.cat(labels).long())
 
-            if self.pr_curve_long_short:
-                self.long_short_pr.update(probs, labels)
     
     def update_predict_shift(self, p, pos, neg):
         """
-        Predict upcomming speaker shift. The events pos/neg are given for the
+        Predict upcoming speaker shift. The events pos/neg are given for the
         correct next speaker.
 
-        correct classifications
-        * pos next_speaker -> 1
-        * neg next_speaker -> 1
-
-        so we flip the negatives to have label 0 and take 1-p as their associated predictions
-
+        * pos next_speaker -> label 1
+        * neg next_speaker -> label 0 (flip to have label 0 and take 1-p as their predictions)
         """
-        probs, labels = [], []
 
-        # At the onset of a SHORT utterance the probability associated
-        # with that person being the next speaker should be low -> 0
-        if pos.sum() > 0:
-            w = torch.where(pos)
-            p_pos = p[w]
-            #pprint(len(p_pos))
-            probs.append(p_pos)
-            labels.append(torch.ones_like(p_pos))
+        def process_events(events, p, label):
+            """
+            Process the given events to extract probabilities and labels.
+            """
+            processed_probs, processed_labels = [], []
+            if events.sum() > 0:
+                indices = torch.where(events)
+                p_events = p[indices]
+                if label == 0:
+                    p_events = 1 - p_events  # reverse probabilities for negative cases
+                processed_probs.append(p_events)
+                processed_labels.append(torch.full_like(p_events, label))
+            return processed_probs, processed_labels
 
-        # At the onset of a LONG utterance the probability associated
-        # with that person being the next speaker should be high -> 1
-        if neg.sum() > 0:
-            w = torch.where(neg)
-            p_neg = 1 - p[w]  # reverse to make negatives have label 0
-            #pprint(len(p_neg))
-            probs.append(p_neg)
-            labels.append(torch.zeros_like(p_neg))
+        # Split pos and neg for each dimension
+        pos_0, pos_1 = pos.clone(), pos.clone()
+        neg_0, neg_1 = neg.clone(), neg.clone()
+        pos_0[:, :, 1] = 0
+        pos_1[:, :, 0] = 0
+        neg_0[:, :, 1] = 0
+        neg_1[:, :, 0] = 0
 
-        if len(probs) > 0:
-            probs = torch.cat(probs)
+        # Process events
+        pos_probs, pos_labels = process_events(pos, p, 1)
+        neg_probs, neg_labels = process_events(neg, p, 0)
+        probs = pos_probs + neg_probs
+        labels = pos_labels + neg_labels
 
-            #probs =  torch.zeros_like(probs, dtype=torch.long)
+        # Process events for pos_0 and neg_0
+        pos_probs_0, pos_labels_0 = process_events(pos_0, p, 1)
+        neg_probs_0, neg_labels_0 = process_events(neg_0, p, 0)
+        probs_0 = pos_probs_0 + neg_probs_0
+        labels_0 = pos_labels_0 + neg_labels_0
 
-            labels = torch.cat(labels).long()
-            #pprint(probs)
-            #pprint(labels)
-            self.predict_shift.update(probs, labels)
+        # Process events for pos_1 and neg_1
+        pos_probs_1, pos_labels_1 = process_events(pos_1, p, 1)
+        neg_probs_1, neg_labels_1 = process_events(neg_1, p, 0)
+        probs_1 = pos_probs_1 + neg_probs_1
+        labels_1 = pos_labels_1 + neg_labels_1
+
+        # Concatenate and update predictions
+        if probs:
+            self.update_predictions(probs, labels, self.predict_shift)
+            self.update_predictions(probs_0, labels_0, self.predict_shift_0)
+            self.update_predictions(probs_1, labels_1, self.predict_shift_1)
 
             if self.pr_curve_shift_pred:
-                self.shift_pred_pr.update(probs, labels)
+                self.shift_pred_pr.update(torch.cat(probs), torch.cat(labels).long())
 
     def update_predict_overlap(self, p, pos, neg):
-        probs, labels = [], []
+        def process_events(events, p, label):
+            """
+            Process the given events to extract probabilities and labels.
+            """
+            processed_probs, processed_labels = [], []
+            if events.sum() > 0:
+                indices = torch.where(events)
+                p_events = p[indices]
+                if label == 0:
+                    p_events = 1 - p_events  # reverse probabilities for negative cases
+                processed_probs.append(p_events)
+                processed_labels.append(torch.full_like(p_events, label))
+            return processed_probs, processed_labels
 
-        # At the onset of a SHORT utterance the probability associated
-        # with that person being the next speaker should be low -> 0
-        if pos.sum() > 0:
-            w = torch.where(pos)
-            p_pos = p[w]
-            #pprint(len(p_pos))
-            probs.append(p_pos)
-            labels.append(torch.ones_like(p_pos))
+        # Split pos and neg for each dimension
+        pos_0, pos_1 = pos.clone(), pos.clone()
+        neg_0, neg_1 = neg.clone(), neg.clone()
+        pos_0[:, :, 1] = 0
+        pos_1[:, :, 0] = 0
+        neg_0[:, :, 1] = 0
+        neg_1[:, :, 0] = 0
 
-        # At the onset of a LONG utterance the probability associated
-        # with that person being the next speaker should be high -> 1
-        if neg.sum() > 0:
-            w = torch.where(neg)
-            p_neg = 1 - p[w]  # reverse to make negatives have label 0
-            #pprint(len(p_neg))
-            probs.append(p_neg)
-            labels.append(torch.zeros_like(p_neg))
+        # Process events
+        pos_probs, pos_labels = process_events(pos, p, 1)
+        neg_probs, neg_labels = process_events(neg, p, 0)
+        probs = pos_probs + neg_probs
+        labels = pos_labels + neg_labels
 
-        if len(probs) > 0:
-            probs = torch.cat(probs)
+        # Process events for pos_0 and neg_0
+        pos_probs_0, pos_labels_0 = process_events(pos_0, p, 1)
+        neg_probs_0, neg_labels_0 = process_events(neg_0, p, 0)
+        probs_0 = pos_probs_0 + neg_probs_0
+        labels_0 = pos_labels_0 + neg_labels_0
 
-            #probs =  torch.zeros_like(probs, dtype=torch.long)
+        # Process events for pos_1 and neg_1
+        pos_probs_1, pos_labels_1 = process_events(pos_1, p, 1)
+        neg_probs_1, neg_labels_1 = process_events(neg_1, p, 0)
+        probs_1 = pos_probs_1 + neg_probs_1
+        labels_1 = pos_labels_1 + neg_labels_1
 
-            labels = torch.cat(labels).long()
-            #pprint(probs)
-            #pprint(labels)
-            self.predict_ov.update(probs, labels)
+        # Concatenate and update predictions
+        if probs:
+            self.update_predictions(probs, labels, self.predict_ov)
+            self.update_predictions(probs_0, labels_0, self.predict_ov_0)
+            self.update_predictions(probs_1, labels_1, self.predict_ov_1)
 
             if self.pr_curve_ov_pred:
-                self.ov_pred_pr.update(probs, labels)
+                self.ov_pred_pr.update(torch.cat(probs), torch.cat(labels).long())
+
 
     def update_predict_backchannel(self, bc_pred_probs, pos, neg):
-        """
-        bc_pred_probs contains the probabilities associated with the given speaker
-        initiating a backchannel in the "foreseeble" future.
+        def process_events(events, p, label, is_neg=False):
+            """
+            Process the given events to extract probabilities and labels.
+            """
+            processed_probs, processed_labels = [], []
+            if events.sum() > 0:
+                wb, wn, w_speaker = torch.where(events)
+                if is_neg:
+                    w_backchanneler = torch.logical_not(w_speaker).long()
+                    indices = (wb, wn, w_backchanneler)
+                else:
+                    indices = (wb, wn, w_speaker)
+                p_events = p[indices]
+                if label == 0 and is_neg:
+                    p_events = 1 - p_events  # reverse probabilities for negative cases
+                processed_probs.append(p_events)
+                processed_labels.append(torch.full_like(p_events, label))
+            return processed_probs, processed_labels
 
-        At POSITIVE events the speaker resposible for the actual upcomming backchannel
-        is the same as the speaker in the event.
+        # Split pos and neg for each dimension
+        pos_0, pos_1 = pos.clone(), pos.clone()
+        neg_0, neg_1 = neg.clone(), neg.clone()
+        pos_0[:, :, 1] = 0
+        pos_1[:, :, 0] = 0
+        neg_0[:, :, 1] = 0
+        neg_1[:, :, 0] = 0
 
-        At NEGATIVE events the speaker that "could have been" responsible for the upcomming backchennel
-        is THE OTHER speaker so the probabilities much be switched.
-        The probabilties associated with predicting THE OTHER is goin to say a backchannel is wrong so we
-        flip the probabilities such that they should be close to 0.
+        # Process events
+        pos_probs, pos_labels = process_events(pos, bc_pred_probs, 1)
+        neg_probs, neg_labels = process_events(neg, bc_pred_probs, 0)
+        probs = pos_probs + neg_probs
+        labels = pos_labels + neg_labels
 
-        """
-        probs, labels = [], []
+        # Process events for each dimension
+        pos_probs_0, pos_labels_0 = process_events(pos_0, bc_pred_probs, 1)
+        neg_probs_0, neg_labels_0 = process_events(neg_0, bc_pred_probs, 0, is_neg=True)
+        pos_probs_1, pos_labels_1 = process_events(pos_1, bc_pred_probs, 1)
+        neg_probs_1, neg_labels_1 = process_events(neg_1, bc_pred_probs, 0, is_neg=True)
 
-        if pos.sum() > 0:
-            w = torch.where(pos)
-            p_pos = bc_pred_probs[w]
-            probs.append(p_pos)
-            labels.append(torch.ones_like(p_pos))
+        # Combine probabilities and labels
+        probs_0 = pos_probs_0 + neg_probs_0
+        labels_0 = pos_labels_0 + neg_labels_0
+        probs_1 = pos_probs_1 + neg_probs_1
+        labels_1 = pos_labels_1 + neg_labels_1
 
-        if neg.sum() > 0:
-            # where is negative samples?
-            wb, wn, w_speaker = torch.where(neg)
-            w_backchanneler = torch.logical_not(w_speaker).long()
+        # Update predictions
+        if probs:
+            self.update_predictions(probs, labels, self.predict_backchannel)
+            self.update_predictions(probs_0, labels_0, self.predict_backchannel_0)
+            self.update_predictions(probs_1, labels_1, self.predict_backchannel_1)
 
-            # p_neg = 1 - bc_pred_probs[(wb, wn, w_backchanneler)]
-            p_neg = bc_pred_probs[(wb, wn, w_backchanneler)]
-            probs.append(p_neg)
-            labels.append(torch.zeros_like(p_neg))
+        if self.pr_curve_bc_pred:
+            self.bc_pred_pr.update(torch.cat(probs), torch.cat(labels).long())
 
-        if len(probs) > 0:
-            probs = torch.cat(probs)
-            labels = torch.cat(labels).long()
-            
-            #probs =  torch.zeros_like(probs, dtype=torch.long)
-
-            self.predict_backchannel(probs, labels)
-
-            if self.pr_curve_bc_pred:
-                self.bc_pred_pr.update(probs, labels)
 
     def reset(self):
         super().reset()
@@ -457,24 +511,39 @@ class TurnTakingMetrics(Metric):
     def compute(self):
         f1_hs = self.hs.compute()
         f1_predict_shift = self.predict_shift.compute()
-        f1_predict_ov = self.predict_ov.compute()
+        f1_predict_shift_0 = self.predict_shift_0.compute()
+        f1_predict_shift_1 = self.predict_shift_1.compute()
         f1_short_long = self.short_long.compute()
+        f1_short_long_0 = self.short_long_0.compute()
+        f1_short_long_1 = self.short_long_1.compute()
 
         ret = {
             "f1_hold_shift": f1_hs["f1_weighted"],
             "f1_predict_shift": f1_predict_shift,
+            "f1_predict_shift_0": f1_predict_shift_0,
+            "f1_predict_shift_1": f1_predict_shift_1,
             "f1_short_long": f1_short_long,
+            "f1_short_long_0": f1_short_long_0,
+            "f1_short_long_1": f1_short_long_1,
         }
 
         try:
             ret["f1_bc_prediction"] = self.predict_backchannel.compute()
+            ret["f1_bc_prediction_0"] = self.predict_backchannel_0.compute()
+            ret["f1_bc_prediction_1"] = self.predict_backchannel_1.compute()
         except:
             ret["f1_bc_prediction"] = -1
+            ret["f1_bc_prediction_0"] = -1
+            ret["f1_bc_prediction_1"] = -1
         
         try:
             ret["f1_predict_ov"] = self.predict_ov.compute()
+            ret["f1_predict_ov_0"] = self.predict_ov_0.compute()
+            ret["f1_predict_ov_1"] = self.predict_ov_1.compute()
         except:
             ret["f1_predict_ov"] = -1
+            ret["f1_predict_ov_0"] = -1
+            ret["f1_predict_ov_1"] = -1
 
         if self.pr_curve_shift_hold:
             ret["pr_curve_shift_hold"] = self.shift_hold_pr.compute()

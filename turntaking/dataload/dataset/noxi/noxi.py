@@ -73,17 +73,17 @@ class NoxiConfig(datasets.BuilderConfig):
         self.ext = ext
         self.min_word_vad_diff = min_word_vad_diff
         self.train_sessions = (
-            read_txt(os.path.join(SPLIT_PATH, "train.txt"))
+            read_txt(os.path.join(SPLIT_PATH, "train_ja_mix.txt"))
             if train_sessions is None
             else train_sessions
         )
         self.val_sessions = (
-            read_txt(os.path.join(SPLIT_PATH, "val.txt"))
+            read_txt(os.path.join(SPLIT_PATH, "val_ja_mix.txt"))
             if val_sessions is None
             else val_sessions
         )
         self.test_sessions = (
-            read_txt(os.path.join(SPLIT_PATH, "test.txt"))
+            read_txt(os.path.join(SPLIT_PATH, "test_ja_mix.txt"))
             if test_sessions is None
             else test_sessions
         )

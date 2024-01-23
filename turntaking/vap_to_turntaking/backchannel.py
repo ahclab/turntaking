@@ -82,6 +82,7 @@ class Backchannel:
 
         bc_oh = torch.zeros_like(vad)
         pre_bc_oh = torch.zeros_like(vad)
+        bc_dur = torch.zeros_like(vad)
         for b, vad_tmp in enumerate(vad):
 
             for speaker in [0, 1]:
@@ -122,6 +123,7 @@ class Backchannel:
 
                     # Add segment as a backchanel
                     end = starts[step] + durs[step]
+                    # print(end)
                     if self.metric_dur_frames > 0:
                         end = starts[step] + self.metric_dur_frames
 
@@ -136,6 +138,7 @@ class Backchannel:
                         continue
 
                     bc_oh[b, starts[step] : end, speaker] = 1.0
+                    bc_dur[b, starts[step] : starts[step] + durs[step], speaker] = 1.0
 
                     # Min Context condition:
                     if (starts[step] - self.metric_pre_label_dur) < min_context:
@@ -146,7 +149,8 @@ class Backchannel:
                         starts[step] - self.metric_pre_label_dur : starts[step],
                         speaker,
                     ] = 1.0
-        return bc_oh, pre_bc_oh
+
+        return bc_oh, pre_bc_oh, bc_dur
 
     def __call__(self, vad, last_speaker=None, ds=None, max_frame=None, min_context=0):
 
@@ -156,10 +160,10 @@ class Backchannel:
         if last_speaker is None:
             last_speaker = get_last_speaker(vad, ds)
 
-        bc_oh, pre_bc = self.backchannel(
+        bc_oh, pre_bc, bc_dur = self.backchannel(
             vad, last_speaker, max_frame=max_frame, min_context=min_context
         )
-        return {"backchannel": bc_oh, "pre_backchannel": pre_bc}
+        return {"backchannel": bc_oh, "pre_backchannel": pre_bc, "bc_dur": bc_dur}
 
 
 if __name__ == "__main__":

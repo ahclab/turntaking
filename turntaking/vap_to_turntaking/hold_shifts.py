@@ -5,7 +5,6 @@ from turntaking.vap_to_turntaking.utils import (find_island_idx_len,
                                                 get_dialog_states,
                                                 get_last_speaker)
 
-
 class HoldShift:
     """
     Hold/Shift extraction from VAD. Operates of Frames.
@@ -176,6 +175,7 @@ class HoldShift:
         hold_cond = template[0, 0] == template[0, -1]
 
         match_oh = torch.zeros((*ds.shape, 2), device=ds.device, dtype=torch.float)
+        event_location = torch.zeros((*ds.shape, 2), device=ds.device, dtype=torch.float)
 
         pre_match_oh = None
         if pre_match:
@@ -188,6 +188,7 @@ class HoldShift:
             onset_match_oh = torch.zeros(
                 (*ds.shape, 2), device=ds.device, dtype=torch.float
             )
+
         for b in range(ds.shape[0]):
             s, d, v = find_island_idx_len(ds[b])
 
@@ -200,6 +201,7 @@ class HoldShift:
             )
 
             # ns: next_speaker, pre_step
+            count = 0
             for ns, pre_step in zip(next_speaker, steps):
                 # If template is of 'HOLD-type' then previous speaker is the
                 # same as next speaker. Otherwise they are different.
@@ -277,6 +279,8 @@ class HoldShift:
                     pre_match_oh[
                         b, s[cur] - self.metric_pre_label_dur : s[cur], ns
                     ] = 1.0
+                    # if ns == 0:
+                        # print(f"0: {s[cur]}")
 
                 # end = s[cur] + self.metric_pad + d[cur]
                 end = s[cur] + self.metric_pad + self.metric_dur
@@ -287,15 +291,19 @@ class HoldShift:
                         continue
 
                 match_oh[b, s[cur] + self.metric_pad : end, ns] = 1.0
+                event_location[b, s[cur] : s[post], ns] = 1.0
 
                 if onset_match:
                     end = s[post] + self.metric_onset_dur
+                    # if ns == 0:
+                        # print(f"1: {s[post]}")
                     if max_frame is not None:
                         if end >= max_frame:
                             continue
                     onset_match_oh[b, s[post] : end, ns] = 1.0
+                    # print(f"{s[post]}:{end}")
 
-        return match_oh, pre_match_oh, onset_match_oh
+        return match_oh, pre_match_oh, onset_match_oh, event_location
 
     def non_shifts(
         self,
@@ -372,7 +380,7 @@ class HoldShift:
         if filled_vad is None:
             filled_vad = self.fill_template(vad, ds, self.hold_template)
 
-        shift_oh, pre_shift_oh, long_shift_onset = self.match_template(
+        shift_oh, pre_shift_oh, long_shift_onset, shift_dur = self.match_template(
             filled_vad,
             ds,
             self.shift_template,
@@ -383,7 +391,7 @@ class HoldShift:
             max_frame=max_frame,
             min_context=min_context,
         )
-        shift_ov_oh, pre_shift_ov_oh, long_shift_ov_onset = self.match_template(
+        shift_ov_oh, pre_shift_ov_oh, long_shift_ov_onset, ov_dur = self.match_template(
             filled_vad,
             ds,
             self.shift_overlap_template,
@@ -394,7 +402,7 @@ class HoldShift:
             max_frame=max_frame,
             min_context=min_context,
         )
-        hold_oh, pre_hold_oh, long_hold_onset = self.match_template(
+        hold_oh, pre_hold_oh, long_hold_onset, hold_dur = self.match_template(
             filled_vad,
             ds,
             self.hold_template,
@@ -415,7 +423,6 @@ class HoldShift:
             max_frame=max_frame,
             min_context=min_context,
         )
-
         return {
             "shift": shift_oh,
             "pre_shift": pre_shift_oh,
@@ -427,6 +434,9 @@ class HoldShift:
             "pre_shift_ov_oh": pre_shift_ov_oh,
             "long_shift_ov_onset": long_shift_ov_onset,
             "non_shift": non_shift_oh,
+            "shift_dur": shift_dur,
+            "hold_dur": hold_dur,
+            "ov_dur": ov_dur
         }
 
 

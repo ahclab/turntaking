@@ -5,6 +5,7 @@ defaults:
 
 info:
   debug: false
+  dir_name: null
 
 train:
   trial_count: 1
@@ -18,12 +19,12 @@ train:
   learning_rate: 3.63e-4
 
 data:
-  datasets: "eald"
+  datasets: "eald" #switchboard, noxi, eald
   type: "sliding"
   sample_rate: ${model.encoder.sample_rate}
   audio_mono: true
-  audio_duration: 1
-  flip_channels: true # 要確認
+  audio_duration: 1.0
+  flip_channels: true # If a single speaker model is to be trained, false is fine.
   audio_normalize: true # If pre-processing is done beforehand, false is fine.
   audio_overlap: 0.5
   undersampling: false #discrete mode only

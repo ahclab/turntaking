@@ -128,9 +128,17 @@ class Test:
             "test_loss": test_loss.item(),
             "shift_hold": events_score["f1_hold_shift"].item(),
             "short_long": events_score["f1_short_long"].item(),
+            "short_long_0": events_score["f1_short_long_0"].item(),
+            "short_long_1": events_score["f1_short_long_1"].item(),
             "shift_pred": events_score["f1_predict_shift"].item(),
+            "shift_pred_0": events_score["f1_predict_shift_0"].item(),
+            "shift_pred_1": events_score["f1_predict_shift_1"].item(),
             "ov_pred": events_score["f1_predict_ov"].item(),
+            "ov_pred_0": events_score["f1_predict_ov_0"].item(),
+            "ov_pred_1": events_score["f1_predict_ov_1"].item(),
             "bc_pred": events_score["f1_bc_prediction"].item(),
+            "bc_pred_0": events_score["f1_bc_prediction_0"].item(),
+            "bc_pred_1": events_score["f1_bc_prediction_1"].item(),
             "shift_f1": events_score["shift"]["f1"].item(),
             "shift_precision": events_score["shift"]["precision"].item(),
             "shift_recall": events_score["shift"]["recall"].item(),
@@ -287,10 +295,11 @@ def main(cfg: DictConfig) -> None:
 
     cfg_dict["num_workers"] = 0
 
-    set_seed(int(basename(dirname(model_path))))
     dm = DialogAudioDM(**cfg_dict["data"])
     dm.setup("test")
     dm.change_frame_mode(True)
+
+    set_seed(int(basename(dirname(model_path))))
 
     test = Test(cfg_dict, dm, model_path)
     score, turn_taking_probs, probs, events = test.test()

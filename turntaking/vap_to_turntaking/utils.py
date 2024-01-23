@@ -116,7 +116,6 @@ def get_last_speaker(vad, ds):
 def vad_list_to_onehot(vad_list, hop_time, duration, channel_last=False):
     n_frames = time2frames(duration, hop_time)
 
-
     if isinstance(vad_list[0][0], list):
         vad_tensor = torch.zeros((len(vad_list), n_frames))
         for ch, ch_vad in enumerate(vad_list):

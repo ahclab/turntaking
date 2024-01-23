@@ -68,7 +68,7 @@ class DialogAudioDataset(Dataset):
         # Audio (waveforms)
         self.sample_rate = sample_rate
         self.audio_mono = audio_mono
-        self.audio_duration = audio_duration
+        self.audio_duration = round(audio_duration / (1 / vad_hz)) * (1 / vad_hz)
         self.audio_overlap_default = audio_overlap
         self.audio_overlap = self.audio_overlap_default
         self.audio_step_time = round(audio_duration - audio_overlap, 3)
@@ -568,6 +568,10 @@ class DialogAudioDataset(Dataset):
         dset_idx = self.map_to_dset_idx[idx]
         start_vad_idx = self.map_to_vad_idx[idx]
         end_vad_idx = int(start_vad_idx + self.vad_hz * self.audio_duration)
+        # print(len(self.map_to_dset_idx))
+        # print(len(self.map_to_vad_idx))
+        # print(len(self.map_to_audio_idx))
+        # print(idx)
         start_audio_idx = self.map_to_audio_idx[idx]
         end_audio_idx = int(start_audio_idx + self.sample_rate * self.audio_duration)
 
