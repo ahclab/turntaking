@@ -78,7 +78,7 @@ class Train():
                     if self.early_stopping.early_stop:
                         print("Early stopping triggered.")
                         break
-
+                        
             self.scheduler.step(i+1)
 
             if self.early_stopping.early_stop:
@@ -169,7 +169,7 @@ def main(cfg: DictConfig) -> None:
         set_debug_mode(cfg_dict)
         cfg_dict["info"]["dir_name"] = "debug"
     
-    # train = Train(cfg_dict, None, None, True)
+    train = Train(cfg_dict, None, None, True)
 
     dm = DialogAudioDM(**cfg_dict["data"])
     dm.setup(None)
@@ -195,7 +195,7 @@ def main(cfg: DictConfig) -> None:
         model = train.train()
 
         ### Test ###
-        test = Test(cfg_dict, dm, output_path)
+        test = Test(cfg_dict, dm, output_path, output_dir, True)
         score, turn_taking_probs, probs, events = test.test()
         write_json(score, join(output_dir, "score.json"))
 

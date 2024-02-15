@@ -250,7 +250,7 @@ def main(cfg: DictConfig) -> None:
             "3: Nara\n"
             "[eald]\n"
             "0: Elderly - Caretaker\n"
-            "1: Elderly - Scychologist\n"
+            "1: Elderly - Psychologist\n"
             "2: Elderly - Student\n"
             "Select the data set number to be used for fine tuning.: "
             )
@@ -281,7 +281,7 @@ def main(cfg: DictConfig) -> None:
         model = finetune.train()
 
         ### Test ###
-        test = Test(cfg_dict, dm, output_path, True)
+        test = Test(cfg_dict, dm, output_path, output_dir, True)
         score, turn_taking_probs, probs, events = test.test()
         write_json(score, join(output_dir, "score.json"))
 

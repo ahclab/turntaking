@@ -12,7 +12,6 @@ from turntaking.utils import to_device
 from turntaking.vap_to_turntaking import VAP, TurnTakingMetrics
 from torchinfo import summary
 
-
 class VadCondition(nn.Module):
     def __init__(self, conf):
         super().__init__()
@@ -239,7 +238,7 @@ class Net(nn.Module):
     def __init__(self, conf):
         super().__init__()
         self.conf = conf
-
+        
         self.audio_cond = self._init_module("audio_cond", AudioCondition)
         self.non_verbal_cond = self._init_module("non_verbal_cond", NonVerbalCondition)
         self.main_module = self._init_module("main_module", AR)
@@ -306,6 +305,7 @@ class Net(nn.Module):
             if not isinstance(self.main_module, nn.Identity)
             else self.main_module(z)
         )
+    
         out = {"logits_vp": self.vap_head(z)}
 
         return out

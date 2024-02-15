@@ -1,7 +1,7 @@
 # Multimodal Voice Activity Prediction Model for Turn-taking
 
 Model training for 
-* [Multimodal Voice Activity Prediction: turntaking Events Detection in user1-user2 Conversation](https://doi.org/10.1145/3623809.3623837)
+* [Multimodal Voice Activity Prediction: turntaking Events Detection in Expert-Novice Conversation](https://doi.org/10.1145/3623809.3623837)
 
 ## Installation
 

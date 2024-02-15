@@ -8,7 +8,7 @@ info:
   dir_name: null
 
 train:
-  trial_count: 1
+  trial_count: 10
   seed: null
   max_epochs: 50
   patience: 3
@@ -16,15 +16,15 @@ train:
   verbose: False
   checkpoint: 1
   device: "cuda:0"
-  learning_rate: 3.63e-4
+  learning_rate: 3.63e-4 #3.63e-4
 
 data:
-  datasets: "eald" #switchboard, noxi, eald
+  datasets: "noxi" #switchboard, noxi, eald
   type: "sliding"
-  sample_rate: ${model.encoder.sample_rate}
+  sample_rate: 16000
   audio_mono: true
   audio_duration: 1.0
-  flip_channels: true # If a single speaker model is to be trained, false is fine.
+  flip_channels: false # If a single speaker model is to be trained, false is fine.
   audio_normalize: true # If pre-processing is done beforehand, false is fine.
   audio_overlap: 0.5
   undersampling: false #discrete mode only

@@ -1,13 +1,12 @@
 encoder: &Encoder
   pretrained: true
   output_layer: 1
-  sample_rate: 16000
   name: cpc
   frame_hz: 25
   freeze: true
   # downsample:
-  #   kernel: [13]
-  #   stride: [5]
+  #   kernel: [26]
+  #   stride: [1]
   #   dilation: [1]
   #   activation: "GELU"
   downsample:
@@ -63,12 +62,12 @@ audio_cond:
   use_module: true
   encoder:
     <<: *Encoder
-    use_module: true
+    use_module: false
     module:
       use_module: false
       <<: *AudioModule
   encoder_separated_audio:
-    use_module: false
+    use_module: true
     user1_input: false
     user2_input: true
     <<: *Encoder
@@ -90,8 +89,8 @@ audio_cond:
     <<: *AudioModule
 
 non_verbal_cond:
-  use_module: false
-  user1_input: true
+  use_module: true
+  user1_input: false
   user2_input: true
   gaze: 
     use_module: true 
@@ -109,7 +108,7 @@ non_verbal_cond:
       use_module: false
       <<: *NonVarbalModule
   pose: 
-    use_module: true
+    use_module: false
     pose_module:
       use_module: false
       <<: *NonVarbalModule

@@ -38,7 +38,7 @@ class TurnTakingEvents:
         self.BS = Backchannel(**self.bc_kwargs)
         self.tt = None
         self.bcs = None
-        set_seed(seed)
+        self.seed = seed
 
     def kwargs_to_frames(self, kwargs, frame_hz):
         new_kwargs = {}
@@ -163,6 +163,7 @@ class TurnTakingEvents:
         return negs.float()
 
     def __call__(self, vad, max_frame=None):
+        set_seed(self.seed)
         ds = get_dialog_states(vad)
         last_speaker = get_last_speaker(vad, ds)
         # pprint(ds)
@@ -296,15 +297,15 @@ if __name__ == "__main__":
     # _, ax = plot_event(events["hold"][0], color=["r", "r"], ax=ax)
     # _, ax = plot_event(events["short"][0], ax=ax)
     # _, ax = plot_event(events["long"][0], color=["r", "r"], ax=ax)
-    # _, ax = plot_event(events["predict_shift_pos"][0], ax=ax)
-    # _, ax = plot_event(events["predict_shift_neg"][0], color=["r", "r"], ax=ax)
+    _, ax = plot_event(events["predict_shift_pos"][0], ax=ax)
+    _, ax = plot_event(events["predict_shift_neg"][0], color=["r", "r"], ax=ax)
     # _, ax = plot_event(events["predict_bc_pos"][0], ax=ax)
     # _, ax = plot_event(events["predict_bc_neg"][0], color=["r", "r"], ax=ax)
 
-    _, ax = plot_event(example["shift"][0], ax=ax)
-    _, ax = plot_event(example["hold"][0], color=["r", "r"], ax=ax)
+    # _, ax = plot_event(example["shift"][0], ax=ax)
+    # _, ax = plot_event(example["hold"][0], color=["r", "r"], ax=ax)
     # _, ax = plot_event(example["short"][0], ax=ax)
     # _, ax = plot_event(example["long"][0], color=["r", "r"], ax=ax)
 
     # plt.pause(0.1)
-    plt.savefig("/ahc/work2/kazuyo-oni/conv_ssl/output_graph/events/hoge.png")
+    plt.savefig("/ahc/work2/kazuyo-oni/hoge.png")

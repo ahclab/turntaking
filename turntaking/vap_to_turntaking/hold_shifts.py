@@ -482,16 +482,18 @@ if __name__ == "__main__":
 
     fig, ax = plot_vad_oh(va[0])
 
-    _, ax = plot_event(tt["shift"][0], ax=ax)
-    _, ax = plot_event(tt["pre_shift"][0], color=["g", "g"], alpha=0.2, ax=ax)
-    _, ax = plot_event(tt["long_shift_onset"][0], color=["r", "r"], alpha=0.2, ax=ax)
+    # _, ax = plot_event(tt["shift"][0], ax=ax)
+    # _, ax = plot_event(tt["pre_shift"][0], color=["g", "g"], alpha=0.2, ax=ax)
+    # _, ax = plot_event(tt["long_shift_onset"][0], color=["r", "r"], alpha=0.2, ax=ax)
 
-    _, ax = plot_event(tt["shift_overlap"][0], ax=ax)
+    # _, ax = plot_event(tt["shift_overlap"][0], ax=ax)
 
-    _, ax = plot_event(tt["hold"][0], ax=ax)
-    _, ax = plot_event(tt["pre_hold"][0], color=["g", "g"], alpha=0.2, ax=ax)
-    _, ax = plot_event(tt["long_hold_onset"][0], color=["r", "r"], alpha=0.2, ax=ax)
+    # _, ax = plot_event(tt["hold"][0], ax=ax)
+    # _, ax = plot_event(tt["pre_hold"][0], color=["g", "g"], alpha=0.2, ax=ax)
+    # _, ax = plot_event(tt["long_hold_onset"][0], color=["r", "r"], alpha=0.2, ax=ax)
 
-    _, ax = plot_event(tt["non_shift"][0], color=["r", "r"], alpha=0.2, ax=ax)
+    # _, ax = plot_event(tt["non_shift"][0], color=["r", "r"], alpha=0.2, ax=ax)
+
+    _, ax = plot_event(tt["non_shift"][0], ax=ax)
     # plt.pause(0.1)
-    plt.savefig("/ahc/work2/kazuyo-oni/turntaking/output_graph/hs/non_shift.png")
+    plt.savefig("/ahc/work2/kazuyo-oni/non_shift.png")

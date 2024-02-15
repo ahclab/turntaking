@@ -23,8 +23,8 @@ class Encoder_Separated(nn.Module):
         super().__init__()
         self.conf = conf
         self.name = conf["name"]
-        self.frame_hz = conf["frame_hz"]
-        self.sample_rate = conf["sample_rate"]
+        # self.frame_hz = conf["frame_hz"]
+        # self.sample_rate = conf["sample_rate"]
         self.encoder_layer = conf["output_layer"]
         self.encoder = load_CPC()
         self.output_dim = self.encoder.gEncoder.conv4.out_channels

@@ -6,6 +6,10 @@ import hydra
 import torch
 import json
 import pandas as pd
+import numpy as np
+import datetime
+import json
+import os
 
 from tqdm import tqdm
 
@@ -16,6 +20,7 @@ from turntaking.utils import (
     to_device,
     set_debug_mode,
     write_json,
+    repo_root,
 )
 from turntaking.dataload import DialogAudioDM
 from turntaking.evaluation import roc_to_threshold, events_plot, compute_classification_metrics, compute_regression_metrics, compute_comparative_metrics, compute_confusion_matrix
@@ -26,9 +31,12 @@ warnings.simplefilter("ignore")
 
 
 class Test:
-    def __init__(self, conf, dm, model_path, find_threshold = False):
+    def __init__(self, conf, dm, model_path, output_dir=None, find_threshold = False):
         self.conf = conf
-        self.output_dir = dirname(model_path)
+        if output_dir == None:
+            self.output_dir = dirname(model_path)
+        else:
+            self.output_dir = output_dir
 
         self.find_threshold = find_threshold
 
@@ -277,35 +285,104 @@ class Test:
             )
 
 
+# @hydra.main(config_path="conf", config_name="config", version_base=None)
+# def main(cfg: DictConfig) -> None:
+#     # def main():
+#     cfg_dict = dict(OmegaConf.to_object(cfg))
+#     debug = cfg_dict["info"]["debug"]
+
+#     model_path = input("Please enter the path of the model.pt file: ")
+
+#     img_input = input("Output images? (True/False): ").strip().lower()
+#     img = img_input == "true"
+
+#     with open(join(dirname(dirname(model_path)), "log.json")) as f:
+#         cfg_dict = json.load(f)
+#         if debug:
+#             set_debug_mode(cfg_dict)
+
+#     cfg_dict["num_workers"] = 0
+
+#     dm = DialogAudioDM(**cfg_dict["data"])
+#     dm.setup("test")
+#     dm.change_frame_mode(True)
+
+#     set_seed(int(basename(dirname(model_path))))
+
+#     test = Test(cfg_dict, dm, model_path)
+#     score, turn_taking_probs, probs, events = test.test()
+
+#     if img:
+#         test.img()
+
 @hydra.main(config_path="conf", config_name="config", version_base=None)
 def main(cfg: DictConfig) -> None:
-    # def main():
+    def compile_scores(score_json_path, output_dir):
+        df = pd.DataFrame()
+        for i, path in enumerate(score_json_path):
+            with open(path, 'r') as f:
+                data = json.load(f)
+            temp_df = pd.json_normalize(data)
+            temp_df['model'] = f'model{i:02}'
+            temp_df['score_json_path'] = path
+            df = pd.concat([df, temp_df], ignore_index=True)
+        
+        avg_row = df.select_dtypes(include=[np.number]).mean()
+        avg_row['model'] = 'Average'
+        avg_row['score_json_path'] = f'{join(output_dir, "final_score.csv")}'
+        avg_df = pd.DataFrame([avg_row])
+        df = pd.concat([df, avg_df], ignore_index=True)
+        df = df[['model', 'score_json_path'] + [col for col in df.columns if col not in ['model', 'score_json_path']]]
+        return df
+    
     cfg_dict = dict(OmegaConf.to_object(cfg))
     debug = cfg_dict["info"]["debug"]
+    device = cfg_dict["train"]["device"]
+    model_dir_path = input("Please enter the path of the model file dir.: ")
 
-    model_path = input("Please enter the path of the model.pt file: ")
-
-    img_input = input("Output images? (True/False): ").strip().lower()
-    img = img_input == "true"
-
-    with open(join(dirname(dirname(model_path)), "log.json")) as f:
+    with open(join(model_dir_path, "log.json")) as f:
         cfg_dict = json.load(f)
+        cfg_dict["train"]["device"] = device
         if debug:
             set_debug_mode(cfg_dict)
 
-    cfg_dict["num_workers"] = 0
-
     dm = DialogAudioDM(**cfg_dict["data"])
-    dm.setup("test")
-    dm.change_frame_mode(True)
+    dm.setup(None)
 
-    set_seed(int(basename(dirname(model_path))))
+    score_json_path = []
+    id = datetime.datetime.now().strftime("%H%M%S")
+    d = datetime.datetime.now().strftime("%Y_%m_%d")
 
-    test = Test(cfg_dict, dm, model_path)
-    score, turn_taking_probs, probs, events = test.test()
+    # Run
+    for i in range(cfg_dict["train"]["trial_count"]):
+        ### Preparation ###
+        if cfg_dict["info"]["dir_name"] == None:
+            output_dir = os.path.join(repo_root(), "output", d, id, str(i).zfill(2))
+        else:
+            output_dir = os.path.join(repo_root(), "output", cfg_dict["info"]["dir_name"], str(i).zfill(2))
+        model_path = os.path.join(model_dir_path, str(i).zfill(2), "model.pt")
+        os.makedirs(output_dir, exist_ok=True)
+        set_seed(i)
 
-    if img:
-        test.img()
+        ### Test ###
+        test = Test(cfg_dict, dm, model_path, output_dir, True)
+        score, turn_taking_probs, probs, events = test.test()
+        write_json(score, join(output_dir, "score.json"))
+
+        print("Saved score -> ", join(output_dir, "score.json"))
+
+        score_json_path.append(join(output_dir, "score.json"))
+
+    if cfg_dict["info"]["dir_name"] == None:
+        output_dir = os.path.join(repo_root(), "output", d, id)
+    else:
+        output_dir = os.path.join(repo_root(), "output", cfg_dict["info"]["dir_name"])
+    df = compile_scores(score_json_path, output_dir)
+    print("-" * 60)
+    print(f"Output Final Score -> {join(output_dir, 'final_score.csv')}")
+    print(df)
+    print("-" * 60)
+    df.to_csv(join(output_dir, "final_score.csv"), index=False)
 
 
 if __name__ == "__main__":

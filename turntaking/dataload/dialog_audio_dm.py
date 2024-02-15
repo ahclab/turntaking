@@ -109,7 +109,17 @@ class DialogAudioDM(pl.LightningDataModule):
         # Audio (waveforms)
         self.audio_mono = audio_mono
         self.audio_duration = audio_duration
-        self.sample_rate = sample_rate
+        if sample_rate == None:
+            if self.datasets == "switchboard":
+                self.sample_rate = 16000
+            elif self.datasets == "noxi":
+                self.sample_rate = 16000
+            elif self.datasets == "eald":
+                self.sample_rate = 16000
+            else:
+                print(f"Dataset ({self.datasets}) not found")
+        else:
+            self.sample_rate = sample_rate
         # Sliding Window Dataset
         self.audio_overlap = audio_overlap
         self.audio_normalize = audio_normalize
